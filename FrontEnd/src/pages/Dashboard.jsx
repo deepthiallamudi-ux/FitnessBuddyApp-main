@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
@@ -7,13 +7,15 @@ import Confetti from "react-confetti"
 import CircularProgress from "../components/CircularProgress"
 import PageTransition from "../components/PageTransition"
 import useCounter from "../hooks/useCounter"
-import { Zap, Trophy, Users, Target, TrendingUp, Calendar, Flame, Clock } from "lucide-react"
+import { Zap, Trophy, Users, Target, TrendingUp, Calendar, Flame, Clock, Dumbbell, MapPin, Gamepad2 } from "lucide-react"
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [totalMinutes, setTotalMinutes] = useState(0)
   const [weeklyGoal, setWeeklyGoal] = useState(0)
+  const [goals, setGoals] = useState([])
   const [weeklyStats, setWeeklyStats] = useState({ workouts: 0, calories: 0, minutes: 0 })
   const [recentWorkouts, setRecentWorkouts] = useState([])
   const [streak, setStreak] = useState(0)
@@ -34,8 +36,23 @@ export default function Dashboard() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
+      const { data: goalsData } = await supabase
+        .from("fitness_goals")
+        .select("*")
+        .eq("user_id", user.id)
+
       setProfile(profileData)
-      setWeeklyGoal(profileData?.weekly_goal || 0)
+      setGoals(goalsData || [])
+      
+      // Get weekly goals (goals with category other than specific fitness goals)
+      const weeklyGoalsData = (goalsData || []).filter(g => !g.deadline || new Date(g.deadline) > new Date())
+      let totalWeeklyTarget = 0
+      weeklyGoalsData.forEach(g => {
+        if (g.unit === "minutes" || g.unit === "time" || g.category === "time") {
+          totalWeeklyTarget += g.target || 0
+        }
+      })
+      setWeeklyGoal(totalWeeklyTarget > 0 ? totalWeeklyTarget : 2.5 * 60) // Default 2.5 hours = 150 minutes
 
       if (workouts) {
         // Total stats
@@ -105,23 +122,53 @@ export default function Dashboard() {
   const randomMessage = motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)]
 
   const quickLinks = [
-    { icon: "🎯", label: "Goals", path: "/goals", color: "from-primary to-secondary" },
-    { icon: "💪", label: "Workouts", path: "/workouts", color: "from-secondary to-darkGreen" },
-    { icon: "🤝", label: "Buddies", path: "/buddies", color: "from-accent to-light" },
-    { icon: "🎯", label: "Challenges", path: "/challenges", color: "from-primary to-accent" },
-    { icon: "🏆", label: "Leaderboard", path: "/leaderboard", color: "from-darkGreen to-secondary" },
-    { icon: "🏢", label: "Gym Finder", path: "/gym-finder", color: "from-secondary to-primary" }
+    { icon: Target, label: "Goals", path: "/goals", color: "from-primary to-secondary" },
+    { icon: Dumbbell, label: "Workouts", path: "/workouts", color: "from-secondary to-darkGreen" },
+    { icon: Users, label: "Buddies", path: "/buddies", color: "from-accent to-light" },
+    { icon: Gamepad2, label: "Challenges", path: "/challenges", color: "from-primary to-accent" },
+    { icon: TrendingUp, label: "Leaderboard", path: "/leaderboard", color: "from-darkGreen to-secondary" },
+    { icon: MapPin, label: "Gym Finder", path: "/gym-finder", color: "from-secondary to-primary" }
   ]
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-[#E3EED4] to-[#AEC3B0] dark:from-[#0F2A1D] dark:to-[#375534] p-6">
+      <div className="min-h-screen bg-gradient-to-br from-[#E3EED4] to-[#AEC3B0] dark:from-[#0F2A1D] dark:to-[#375534] p-6 relative overflow-hidden">
+        {/* Animated Wave Background SVG */}
+        <svg
+          className="absolute top-0 left-0 w-full h-64 opacity-20 dark:opacity-10"
+          viewBox="0 0 1000 200"
+          preserveAspectRatio="none"
+          style={{ zIndex: 0 }}
+        >
+          <motion.path
+            d="M0,100 Q250,50 500,100 T1000,100 L1000,200 L0,200 Z"
+            fill="url(#gradient)"
+            animate={{
+              d: [
+                "M0,100 Q250,50 500,100 T1000,100 L1000,200 L0,200 Z",
+                "M0,120 Q250,30 500,120 T1000,120 L1000,200 L0,200 Z",
+                "M0,100 Q250,50 500,100 T1000,100 L1000,200 L0,200 Z"
+              ]
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          />
+          <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style={{ stopColor: "#0F2A1D", stopOpacity: 0.5 }} />
+              <stop offset="100%" style={{ stopColor: "#6B9071", stopOpacity: 0.2 }} />
+            </linearGradient>
+          </defs>
+        </svg>
         {progress >= 100 && <Confetti recycle={false} numberOfPieces={200} />}
 
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="max-w-7xl mx-auto"
+        className="max-w-7xl mx-auto relative z-10"
       >
         {/* Header with Welcome */}
         <motion.div
@@ -233,7 +280,7 @@ export default function Dashboard() {
               <CircularProgress value={progress} />
             </div>
             <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-              {weeklyStats.minutes} / {weeklyGoal} minutes
+              {(weeklyStats.minutes / 60).toFixed(1)} / {weeklyGoal} hours
             </p>
             {progress >= 100 && (
               <motion.div
@@ -287,47 +334,33 @@ export default function Dashboard() {
               Quick Actions
             </h2>
             <div className="space-y-2">
-              <Link
-                to="/workouts"
-              className="block w-full p-3 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition text-center"
-            >
-              + Log Workout
-            </Link>
-              <Link
-                to="/goals"
-                className="block w-full p-3 bg-gradient-to-r from-accent to-darkGreen text-light font-semibold rounded-lg hover:shadow-lg transition text-center"
+              <motion.button
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                whileHover={{ scale: 1.05, y: -3, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => navigate("/workouts")}
+                className="block w-full p-3 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition text-center cursor-pointer border-0"
+              >
+                + Log Workout
+              </motion.button>
+              <motion.button
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.15 }}
+                whileHover={{ scale: 1.05, y: -3, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => navigate("/goals")}
+                className="block w-full p-3 bg-gradient-to-r from-accent to-darkGreen text-light font-semibold rounded-lg hover:shadow-lg transition text-center cursor-pointer border-0"
               >
                 View Goals
-              </Link>
+              </motion.button>
             </div>
           </motion.div>
         </div>
 
-        {/* Quick Links */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            🚀 Quick Links
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {quickLinks.map((link, index) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                as={motion.div}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <div className={`bg-gradient-to-br ${link.color} p-4 rounded-2xl shadow-lg hover:shadow-xl transition text-center text-white cursor-pointer`}>
-                  <div className="text-3xl mb-2">{link.icon}</div>
-                  <p className="font-bold text-sm">{link.label}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+
 
         {/* Recent Workouts */}
         {recentWorkouts.length > 0 && (

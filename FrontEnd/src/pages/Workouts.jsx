@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
 import ProgressBar from "../components/ProgressBar"
-import { Plus, Share2, Trash2, Flame, Clock, Zap, Facebook, Instagram, Linkedin } from "lucide-react"
+import { Plus, Share2, Trash2, Flame, Clock, Zap, Facebook, Instagram, Linkedin, Edit2 } from "lucide-react"
 
 export default function Workouts() {
   const { user } = useAuth()
@@ -15,8 +15,10 @@ export default function Workouts() {
   const [notes, setNotes] = useState("")
   const [workouts, setWorkouts] = useState([])
   const [weeklyGoal, setWeeklyGoal] = useState(0)
+  const [goals, setGoals] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [celebratingWeek, setCelebratingWeek] = useState(false)
+  const [editingId, setEditingId] = useState(null)
 
   const caloriesPerMinute = 5
 
@@ -27,14 +29,24 @@ export default function Workouts() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("weekly_goal")
-      .eq("id", user.id)
-      .single()
+    const { data: goalsData } = await supabase
+      .from("fitness_goals")
+      .select("*")
+      .eq("user_id", user.id)
 
     if (data) setWorkouts(data)
-    if (profile) setWeeklyGoal(profile.weekly_goal)
+    if (goalsData) {
+      setGoals(goalsData)
+      // Get weekly goals and calculate total target
+      const weeklyGoalsData = goalsData.filter(g => !g.deadline || new Date(g.deadline) > new Date())
+      let totalWeeklyTarget = 0
+      weeklyGoalsData.forEach(g => {
+        if (g.unit === "minutes" || g.unit === "time" || g.category === "time") {
+          totalWeeklyTarget += g.target || 0
+        }
+      })
+      setWeeklyGoal(totalWeeklyTarget > 0 ? totalWeeklyTarget : 2.5 * 60) // Default 2.5 hours = 150 minutes
+    }
   }
 
   useEffect(() => {
@@ -49,37 +61,123 @@ export default function Workouts() {
       return
     }
 
-    const calories = duration * caloriesPerMinute
-
-    const { error } = await supabase.from("workouts").insert([
-      {
-        user_id: user.id,
-        type,
-        duration: parseFloat(duration),
-        distance: distance ? parseFloat(distance) : null,
-        calories,
-        notes,
-        created_at: new Date()
-      }
-    ])
-
-    if (error) {
-      alert("Error adding workout: " + error.message)
+    // Check if distance is required for specific workout types
+    const distanceRequiredTypes = ["Running", "Walking", "Cycling"]
+    if (distanceRequiredTypes.includes(type) && !distance) {
+      alert(`Distance is required for ${type} workouts!`)
       return
     }
 
-    setType("")
-    setDuration("")
-    setDistance("")
-    setNotes("")
-    setShowForm(false)
-    fetchWorkouts()
+    try {
+      // Verify user profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile) {
+        // Create profile if it doesn't exist
+        const { error: createError } = await supabase.from("profiles").insert([{
+          id: user.id,
+          email: user.email,
+          username: user.email?.split("@")[0] || "user",
+          created_at: new Date()
+        }])
+
+        if (createError) {
+          alert("Error creating user profile: " + createError.message)
+          return
+        }
+      }
+
+      const calories = duration * caloriesPerMinute
+
+      if (editingId) {
+        // Update existing workout
+        const { error } = await supabase
+          .from("workouts")
+          .update({
+            type,
+            duration: parseFloat(duration),
+            distance: distance ? parseFloat(distance) : null,
+            calories,
+            notes,
+            updated_at: new Date()
+          })
+          .eq("id", editingId)
+
+        if (error) {
+          alert("Error updating workout: " + error.message)
+          return
+        }
+
+        setEditingId(null)
+      } else {
+        // Create new workout
+        const { error } = await supabase.from("workouts").insert([
+          {
+            user_id: user.id,
+            type,
+            duration: parseFloat(duration),
+            distance: distance ? parseFloat(distance) : null,
+            calories,
+            notes,
+            created_at: new Date()
+          }
+        ])
+
+        if (error) {
+          alert("Error adding workout: " + error.message)
+          return
+        }
+      }
+
+      setType("")
+      setDuration("")
+      setDistance("")
+      setNotes("")
+      setShowForm(false)
+      fetchWorkouts()
+    } catch (error) {
+      alert("Error: " + error.message)
+    }
+  }
+
+  const handleEditWorkout = (workout) => {
+    setType(workout.type)
+    setDuration(workout.duration)
+    setDistance(workout.distance || "")
+    setNotes(workout.notes || "")
+    setEditingId(workout.id)
+    setShowForm(true)
   }
 
   const handleDeleteWorkout = async (id) => {
     if (confirm("Delete this workout?")) {
-      await supabase.from("workouts").delete().eq("id", id)
-      fetchWorkouts()
+      try {
+        // Immediately remove from local state for instant UI update
+        setWorkouts(prevWorkouts => prevWorkouts.filter(w => w.id !== id))
+        
+        const { error } = await supabase.from("workouts").delete().eq("id", id)
+        if (error) {
+          alert("Error deleting workout: " + error.message)
+          // Restore to local state if deletion fails
+          fetchWorkouts()
+          return
+        }
+        
+        alert("✓ Workout deleted successfully!")
+        // Refresh data from server to ensure consistency
+        setTimeout(() => {
+          fetchWorkouts()
+          window.dispatchEvent(new Event('leaderboardUpdate'))
+          window.dispatchEvent(new Event('achievementsUpdate'))
+        }, 500)
+      } catch (error) {
+        alert("Error: " + error.message)
+        fetchWorkouts()
+      }
     }
   }
 
@@ -204,7 +302,7 @@ export default function Workouts() {
             <div className="flex justify-between items-center mb-3">
               <span className="font-semibold text-gray-700 dark:text-gray-300">Weekly Goal Progress</span>
               <span className="text-lg font-bold text-primary dark:text-accent">
-                {summary.totalDuration} / {weeklyGoal} minutes ({Math.round(progressPercent)}%)
+                {(summary.totalDuration / 60).toFixed(1)} / {weeklyGoal} hours ({Math.round(progressPercent)}%)
               </span>
             </div>
             <ProgressBar percentage={progressPercent} />
@@ -265,7 +363,9 @@ export default function Workouts() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white dark:bg-gray-900 rounded-2xl p-8 mb-8 shadow-xl"
           >
-            <h2 className="text-2xl font-bold mb-6">Log New Workout</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              {editingId ? "Edit Workout" : "Log New Workout"}
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
@@ -302,15 +402,18 @@ export default function Workouts() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Distance (optional)</label>
+                  <label className="block text-sm font-semibold mb-2">Distance (optional) <span className="text-red-500">*{["Running", "Walking", "Cycling"].includes(type) ? " Required" : ""}</span></label>
                   <input
                     type="number"
-                    placeholder="e.g., 5 (km/miles)"
+                    placeholder={["Running", "Walking", "Cycling"].includes(type) ? "e.g., 5 (km/miles) - REQUIRED" : "e.g., 5 (km/miles)"}
                     value={distance}
                     onChange={(e) => setDistance(e.target.value)}
                     step="0.1"
                     className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
                   />
+                  {["Running", "Walking", "Cycling"].includes(type) && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">✓ Required for this workout type</p>
+                  )}
                 </div>
 
                 <div>
@@ -340,11 +443,18 @@ export default function Workouts() {
                   type="submit"
                   className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-lg hover:shadow-lg transition"
                 >
-                  Log Workout
+                  {editingId ? "Update Workout" : "Log Workout"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false)
+                    setEditingId(null)
+                    setType("")
+                    setDuration("")
+                    setDistance("")
+                    setNotes("")
+                  }}
                   className="flex-1 py-3 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition"
                 >
                   Cancel
@@ -377,12 +487,20 @@ export default function Workouts() {
                         {new Date(workout.created_at).toLocaleTimeString()}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteWorkout(workout.id)}
-                      className="p-2 bg-[#AEC3B0] dark:bg-[#6B9071] text-[#0F2A1D] dark:text-[#E3EED4] rounded-lg hover:bg-[#6B9071] dark:hover:bg-[#375534] transition"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEditWorkout(workout)}
+                        className="p-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteWorkout(workout.id)}
+                        className="p-2 bg-[#AEC3B0] dark:bg-[#6B9071] text-[#0F2A1D] dark:text-[#E3EED4] rounded-lg hover:bg-[#6B9071] dark:hover:bg-[#375534] transition"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid md:grid-cols-3 gap-4 mb-4">
@@ -390,7 +508,7 @@ export default function Workouts() {
                       <Clock className="w-5 h-5 text-secondary dark:text-darkGreen" />
                       <div>
                         <p className="text-sm text-gray-600 dark:text-gray-400">Duration</p>
-                        <p className="font-bold text-gray-900 dark:text-white">{workout.duration} min</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{(workout.duration / 60).toFixed(1)} hrs</p>
                       </div>
                     </div>
 

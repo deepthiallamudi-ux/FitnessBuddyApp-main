@@ -39,6 +39,35 @@ export default function AnimatedBackground() {
     }
   }
 
+  // Bouncing bubble variant
+  const bubblingVariants = {
+    animate: (custom) => ({
+      y: [0, -400, 0],
+      x: [0, custom.direction, 0],
+      scale: [1, 1.2, 0.8],
+      opacity: [0.6, 1, 0],
+      transition: {
+        duration: custom.duration || 12,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    })
+  }
+
+  // Wave variant for water-like effect
+  const waveVariants = {
+    animate: {
+      d: ["M0,100 Q250,50 500,100 T1000,100 L1000,200 L0,200 Z", 
+           "M0,120 Q250,40 500,120 T1000,120 L1000,200 L0,200 Z", 
+           "M0,100 Q250,50 500,100 T1000,100 L1000,200 L0,200 Z"],
+      transition: {
+        duration: 8,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  }
+
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden bg-gradient-to-br from-[#E3EED4] to-[#AEC3B0] dark:from-[#0F2A1D] dark:to-[#375534]">
 
@@ -102,6 +131,42 @@ export default function AnimatedBackground() {
         style={{ bottom: "20%", left: "50%" }}
       />
 
+      {/* Bouncing Bubbles - Top left area */}
+      {[...Array(4)].map((_, i) => (
+        <motion.div
+          key={`bubble-1-${i}`}
+          className="absolute rounded-full bg-gradient-to-br from-primary/40 to-secondary/30 shadow-lg blur-sm"
+          style={{
+            width: `${40 + i * 15}px`,
+            height: `${40 + i * 15}px`,
+            left: `${5 + i * 8}%`,
+            bottom: "-100px",
+            boxShadow: `0 0 ${20 + i * 5}px rgba(15, 42, 29, 0.15)`
+          }}
+          variants={bubblingVariants}
+          animate="animate"
+          custom={{ duration: 10 + i, direction: i % 2 === 0 ? 50 : -50 }}
+        />
+      ))}
+
+      {/* Bouncing Bubbles - Top right area */}
+      {[...Array(4)].map((_, i) => (
+        <motion.div
+          key={`bubble-2-${i}`}
+          className="absolute rounded-full bg-gradient-to-br from-secondary/35 to-accent/25 shadow-lg blur-sm"
+          style={{
+            width: `${50 + i * 12}px`,
+            height: `${50 + i * 12}px`,
+            right: `${5 + i * 8}%`,
+            bottom: "-100px",
+            boxShadow: `0 0 ${25 + i * 4}px rgba(107, 144, 113, 0.12)`
+          }}
+          variants={bubblingVariants}
+          animate="animate"
+          custom={{ duration: 12 + i, direction: i % 2 === 0 ? -60 : 60 }}
+        />
+      ))}
+
       {/* Particle Stream 1 */}
       {[...Array(5)].map((_, i) => (
         <motion.div
@@ -152,6 +217,35 @@ export default function AnimatedBackground() {
           custom={{ duration: 8 + i * 2 }}
         />
       ))}
+
+      {/* Wave Effect - Bottom */}
+      <svg
+        className="absolute bottom-0 w-full opacity-30 dark:opacity-15"
+        viewBox="0 0 1000 200"
+        preserveAspectRatio="none"
+        height="200"
+      >
+        <motion.path
+          fill="rgba(15, 42, 29, 0.3)"
+          variants={waveVariants}
+          animate="animate"
+        />
+        <motion.path
+          fill="rgba(107, 144, 113, 0.2)"
+          d="M0,100 Q250,80 500,100 T1000,100 L1000,200 L0,200 Z"
+          animate={{
+            d: ["M0,100 Q250,80 500,100 T1000,100 L1000,200 L0,200 Z",
+                "M0,120 Q250,60 500,120 T1000,120 L1000,200 L0,200 Z",
+                "M0,100 Q250,80 500,100 T1000,100 L1000,200 L0,200 Z"]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: 0.4
+          }}
+        />
+      </svg>
 
       {/* Rotating Grid */}
       <motion.div

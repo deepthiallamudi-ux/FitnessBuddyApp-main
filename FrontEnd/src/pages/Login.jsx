@@ -1,11 +1,16 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { useTheme } from "../context/ThemeContext"
 import { motion } from "framer-motion"
 import AuthBackground from "../components/AuthBackground"
+import PageTransition from "../components/PageTransition"
+import ThemeToggle from "../components/ThemeToggle"
 import { Mail, Lock, Eye, EyeOff } from "lucide-react"
 
 export default function Login() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const {
     signIn,
     signUp,
@@ -14,7 +19,14 @@ export default function Login() {
     resetPassword
   } = useAuth()
 
-  const { dark, setDark } = useTheme()
+  const { dark } = useTheme()
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true })
+    }
+  }, [user, navigate])
 
   const [isSignup, setIsSignup] = useState(false)
   const [isForgotPassword, setIsForgotPassword] = useState(false)
@@ -63,7 +75,10 @@ export default function Login() {
         setMessage("✅ Login successful! Redirecting...")
         setEmail("")
         setPassword("")
-        // Redirect will happen automatically due to auth state change
+        // Wait a moment for auth state to update, then navigate
+        setTimeout(() => {
+          navigate("/", { replace: true })
+        }, 500)
       }
     }
 
@@ -111,7 +126,8 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen flex">
+    <PageTransition>
+      <div className="relative min-h-screen flex">
 
       <AuthBackground />
 
@@ -147,13 +163,7 @@ export default function Login() {
             <h2 className="text-2xl font-bold text-center flex-1 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
               {isForgotPassword ? "Reset Password" : (isSignup ? "Create Account" : "Welcome Back")}
             </h2>
-            <button
-              onClick={() => setDark(!dark)}
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary transition"
-              title={dark ? "Light Mode" : "Dark Mode"}
-            >
-              {dark ? "☀️" : "🌙"}
-            </button>
+            <ThemeToggle />
           </div>
 
           {/* Message Display */}
@@ -330,6 +340,7 @@ export default function Login() {
           )}
         </motion.div>
       </div>
-    </div>
+      </div>
+    </PageTransition>
   )
 }

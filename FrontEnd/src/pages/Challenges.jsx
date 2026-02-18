@@ -81,34 +81,60 @@ export default function Challenges() {
       return
     }
 
-    const { error } = await supabase.from("challenges").insert([
-      {
-        title: formData.title,
-        description: formData.description,
-        target: parseFloat(formData.target),
-        unit: formData.unit,
-        duration: formData.duration,
-        reward_badge: formData.reward_badge,
-        created_by: user.id,
-        created_at: new Date()
+    try {
+      // Verify user profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile) {
+        // Create profile if it doesn't exist
+        const { error: createError } = await supabase.from("profiles").insert([{
+          id: user.id,
+          email: user.email,
+          username: user.email?.split("@")[0] || "user",
+          created_at: new Date()
+        }])
+
+        if (createError) {
+          alert("Error creating user profile: " + createError.message)
+          return
+        }
       }
-    ])
 
-    if (error) {
-      alert("Error creating challenge: " + error.message)
-      return
+      const { error } = await supabase.from("challenges").insert([
+        {
+          title: formData.title,
+          description: formData.description,
+          target: parseFloat(formData.target),
+          unit: formData.unit,
+          duration: formData.duration,
+          reward_badge: formData.reward_badge,
+          created_by: user.id,
+          created_at: new Date()
+        }
+      ])
+
+      if (error) {
+        alert("Error creating challenge: " + error.message)
+        return
+      }
+
+      setFormData({
+        title: "",
+        description: "",
+        target: "",
+        unit: "miles",
+        duration: "weekly",
+        reward_badge: "champion"
+      })
+      setShowForm(false)
+      fetchChallenges()
+    } catch (error) {
+      alert("Error: " + error.message)
     }
-
-    setFormData({
-      title: "",
-      description: "",
-      target: "",
-      unit: "miles",
-      duration: "weekly",
-      reward_badge: "champion"
-    })
-    setShowForm(false)
-    fetchChallenges()
   }
 
   const getProgressPercentage = (challenge) => {

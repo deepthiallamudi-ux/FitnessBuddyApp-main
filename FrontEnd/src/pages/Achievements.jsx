@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
-import { Trophy, Star, Award, Zap, Flame } from "lucide-react"
+import { Trophy, Star, Award, Zap, Flame, Facebook, Twitter, Linkedin, Share2 } from "lucide-react"
 import PageTransition from "../components/PageTransition"
 
 export default function Achievements() {
@@ -12,6 +12,20 @@ export default function Achievements() {
 
   useEffect(() => {
     if (user) fetchAchievements()
+    
+    // Listen for updates from deletions
+    const handleUpdate = () => {
+      if (user) {
+        fetchAchievements()
+      }
+    }
+    
+    window.addEventListener('achievementsUpdate', handleUpdate)
+    window.addEventListener('leaderboardUpdate', handleUpdate)
+    return () => {
+      window.removeEventListener('achievementsUpdate', handleUpdate)
+      window.removeEventListener('leaderboardUpdate', handleUpdate)
+    }
   }, [user])
 
   const fetchAchievements = async () => {
@@ -30,6 +44,25 @@ export default function Achievements() {
       console.error("Error fetching achievements:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const shareBadge = (badge) => {
+    const text = `🎉 I just unlocked the "${badge.name}" badge on Fitness Buddy! ${badge.icon}\n\n"${badge.description}"\n\nJoin me in my fitness journey and unlock amazing badges! 💪 #FitnessBuddy #Achievements`
+
+    const urls = {
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}&hashtag=%23FitnessBuddy`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=fitnesbuddy.com`
+    }
+
+    return urls
+  }
+
+  const handleShare = (badge, platform) => {
+    const urls = shareBadge(badge)
+    if (urls[platform]) {
+      window.open(urls[platform], "_blank", "width=600,height=400")
     }
   }
 
@@ -275,12 +308,41 @@ export default function Achievements() {
                   {badge.description}
                 </p>
 
-                <div className="flex items-center justify-center gap-1 mt-auto">
+                <div className="flex items-center justify-center gap-1 mt-auto mb-3">
                   <span className={`text-sm font-bold ${badge.unlocked ? "text-white" : "text-gray-600 dark:text-gray-500"}`}>
                     +{badge.points}
                   </span>
                   <Star className="w-4 h-4" fill="currentColor" />
                 </div>
+
+                {badge.unlocked && (
+                  <div className="flex gap-2 justify-center mb-2 w-full">
+                    <motion.button
+                      onClick={() => handleShare(badge, "twitter")}
+                      whileHover={{ scale: 1.1 }}
+                      className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
+                      title="Share on Twitter"
+                    >
+                      <Twitter className="w-4 h-4 text-white" />
+                    </motion.button>
+                    <motion.button
+                      onClick={() => handleShare(badge, "facebook")}
+                      whileHover={{ scale: 1.1 }}
+                      className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
+                      title="Share on Facebook"
+                    >
+                      <Facebook className="w-4 h-4 text-white" />
+                    </motion.button>
+                    <motion.button
+                      onClick={() => handleShare(badge, "linkedin")}
+                      whileHover={{ scale: 1.1 }}
+                      className="p-2 bg-white/20 hover:bg-white/30 rounded-lg transition"
+                      title="Share on LinkedIn"
+                    >
+                      <Linkedin className="w-4 h-4 text-white" />
+                    </motion.button>
+                  </div>
+                )}
 
                 {!badge.unlocked && (
                   <div

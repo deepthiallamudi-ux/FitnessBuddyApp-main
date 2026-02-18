@@ -1,27 +1,49 @@
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import AnimatedBackground from "./AnimatedBackground"
+import ThemeToggle from "./ThemeToggle"
+import DailyHealthTip from "./DailyHealthTip"
 import { motion } from "framer-motion"
-import { Menu, X } from "lucide-react"
-import { useState } from "react"
+import { Menu, X, BarChart3, User, Target, Dumbbell, Users, Gamepad2, Star, MapPin, TrendingUp, Book, MessageCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { supabase } from "../lib/supabase"
 
 export default function Layout({ children }) {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [username, setUsername] = useState("")
+
+  useEffect(() => {
+    if (user) {
+      const fetchUsername = async () => {
+        const { data } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single()
+        
+        if (data) {
+          setUsername(data.username)
+        }
+      }
+      
+      fetchUsername()
+    }
+  }, [user])
 
   const navItems = [
-    { name: "Dashboard", path: "/", icon: "📊" },
-    { name: "Profile", path: "/profile", icon: "👤" },
-    { name: "Goals", path: "/goals", icon: "🎯" },
-    { name: "Workouts", path: "/workouts", icon: "💪" },
-    { name: "Buddies", path: "/buddies", icon: "🤝" },
-    { name: "Challenges", path: "/challenges", icon: "🏆" },
-    { name: "Achievements", path: "/achievements", icon: "⭐" },
-    { name: "Gym Finder", path: "/gym-finder", icon: "🗺️" },
-    { name: "Leaderboard", path: "/leaderboard", icon: "🏅" },
-    { name: "Resources", path: "/resources", icon: "📚" },
-    { name: "Chat", path: "/chat", icon: "💬" }
+    { name: "Dashboard", path: "/", icon: BarChart3 },
+    { name: "Profile", path: "/profile", icon: User },
+    { name: "Goals", path: "/goals", icon: Target },
+    { name: "Workouts", path: "/workouts", icon: Dumbbell },
+    { name: "Buddies", path: "/buddies", icon: Users },
+    { name: "Challenges", path: "/challenges", icon: Gamepad2 },
+    { name: "Achievements", path: "/achievements", icon: Star },
+    { name: "Gym Finder", path: "/gym-finder", icon: MapPin },
+    { name: "Leaderboard", path: "/leaderboard", icon: TrendingUp },
+    { name: "Resources", path: "/resources", icon: Book },
+    { name: "Chat", path: "/chat", icon: MessageCircle }
   ]
 
   const navVariants = {
@@ -101,7 +123,7 @@ export default function Layout({ children }) {
                     whileHover={{ x: 5 }}
                     className="flex items-center gap-3"
                   >
-                    <span className="text-xl">{item.icon}</span>
+                    {item.icon && <item.icon size={20} />}
                     <span className={!sidebarOpen ? "hidden" : ""}>
                       {item.name}
                     </span>
@@ -128,14 +150,20 @@ export default function Layout({ children }) {
           </motion.nav>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}
-          whileTap={{ scale: 0.98 }}
-          onClick={logout}
-          className="bg-gradient-to-r from-primary to-secondary text-light py-3 rounded-lg hover:shadow-lg transition w-full font-semibold"
-        >
-          {sidebarOpen ? "Logout" : "🚪"}
-        </motion.button>
+        <div className="space-y-3">
+          <div className="flex justify-center">
+            <ThemeToggle />
+          </div>
+          
+          <motion.button
+            whileHover={{ scale: 1.02, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}
+            whileTap={{ scale: 0.98 }}
+            onClick={logout}
+            className="bg-gradient-to-r from-primary to-secondary text-light py-3 rounded-lg hover:shadow-lg transition w-full font-semibold"
+          >
+            {sidebarOpen ? "Logout" : "🚪"}
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* Main Content */}
@@ -145,10 +173,27 @@ export default function Layout({ children }) {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -50 }}
         transition={{ duration: 0.5, type: "spring", stiffness: 100 }}
-        className="flex-1 overflow-auto z-10"
+        className="flex-1 overflow-auto z-10 flex flex-col"
       >
-        {children}
+        {/* Username Greeting Header */}
+        <div className="bg-white/40 dark:bg-gray-900/40 backdrop-blur-md border-b border-white/20 dark:border-gray-700/20 p-4 sticky top-0 z-10">
+          <motion.h2
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"
+          >
+            👋 Hi, {username || "Friend"}!
+          </motion.h2>
+        </div>
+
+        {/* Page Content */}
+        <div className="flex-1">
+          {children}
+        </div>
       </motion.div>
+
+      {/* Daily Health Tip Modal */}
+      <DailyHealthTip />
     </div>
   )
 }

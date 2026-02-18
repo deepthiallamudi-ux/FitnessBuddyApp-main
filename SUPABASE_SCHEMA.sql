@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS fitness_goals (
   title TEXT NOT NULL,
   description TEXT,
   category TEXT,
+  goal_type TEXT DEFAULT 'weekly',
   target FLOAT NOT NULL,
   current FLOAT DEFAULT 0,
   unit TEXT,

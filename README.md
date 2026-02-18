@@ -1,352 +1,433 @@
-# Fitness Buddy App 🏋️‍♂️
+# Fitness Buddy App
 
-A modern, interactive fitness social platform built with React, Vite, Tailwind CSS, and Supabase that helps users set fitness goals, track progress, connect with workout buddies, and stay motivated in a supportive community.
+A modern, full-stack fitness social platform where users can connect with fitness enthusiasts, track workouts, join challenges, and achieve health goals together.
 
-## ✨ Features
+![Fitness Buddy](https://img.shields.io/badge/status-active-success) ![React](https://img.shields.io/badge/React-18.2.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-16+-green) ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-brightgreen)
 
-### 🔐 Authentication & Security
-- **Email/Password Registration & Login** with email verification
-- **Social Login** - Google, Facebook (with Instagram coming soon)
-- **Forgot Password & Reset** functionality
-- **Secure Session Management** via Supabase Auth
+## 🎯 Overview
 
-### 👤 User Profiles
-- **Customizable Profiles** with username, age, location
-- **Profile Picture Upload** to cloud storage
-- **Fitness Goals & Preferences** (e.g., weight loss, strength training)
-- **Preferred Workout Types** (running, yoga, gym, cycling, swimming, HIIT, CrossFit, etc.)
-- **Geolocation Integration** for buddy matching and gym discovery
-- **Weekly Fitness Goals** setup (e.g., 150 minutes per week)
+Fitness Buddy is a comprehensive fitness social network that combines workout tracking, buddy matching, community challenges, and real-time communication. The app uses modern web technologies to provide a seamless user experience with beautiful animations and a responsive design.
 
-### 🎯 Goals Management
-- **Create Custom Fitness Goals** with target metrics and deadlines
-- **Track Progress** with real-time updates
-- **Goal Categories** - Distance, Duration, Calories, Workouts
-- **Visual Progress Bars** showing completion percentage
-- **Celebratory Animations** 🎉 when goals are achieved
-- **Goal Milestones** and reminders
+### Key Highlights
+- ✅ Full-stack application (Frontend + Backend + Database)
+- ✅ Real-time messaging and notifications
+- ✅ Sophisticated buddy matching algorithm
+- ✅ Community-driven challenges and leaderboards
+- ✅ Mobile-responsive design with dark mode
+- ✅ Secure authentication with Supabase
 
-### 💪 Workout Tracking
-- **Log Workouts** - Type, duration, distance, estimated calories
-- **Smart Calorie Calculation** based on activity type
-- **Detailed Notes** for each workout
-- **Weekly & All-Time Statistics** dashboard
-- **Workout History** with filtering and sorting
-- **Progress Analytics** with visual charts
+## 📋 What Users Can Do
 
-### 📊 Dashboard & Analytics
-- **At-a-Glance Overview** of fitness journey
-- **Weekly Summary** - workouts completed, calories burned, time logged
-- **Streak Display** - current consecutive days active
-- **Motivational Messages** that change daily
-- **Quick Access Links** to all features
-- **Recent Workouts** preview
-- **Goal Progress Visualization**
+1. **Authentication & Profiling**
+   - Sign up with email, Google, or Facebook
+   - Create detailed fitness profiles
+   - Upload and manage profile avatars
+   - Set fitness goals and preferences
 
-### 🤝 Social Features
-- **Buddy Matching System** based on:
-  - Fitness goals similarity
-  - Preferred workout types
-  - Geographic proximity
-- **Connect with Similar Users** instantly
-- **Messaging System** to communicate with buddies
-- **Progress Sharing** with buddies
-- **Buddy Activity Feed** to stay motivated
+2. **Workout Management**
+   - Log workouts with type, duration, distance
+   - Auto-calculated calorie burning
+   - View workout history and statistics
+   - Track weekly goal progress
 
-### 🎯 Challenges System
-- **Community Challenges** - Run 50 miles, HIIT 100 workouts, etc.
-- **Create Custom Challenges** to invite friends or go public
-- **Challenge Leaderboards** with real-time rankings
-- **Exclusive Badges** for completing challenges:
-  - 🥇 Champion
-  - 🦸 Hero
-  - 👑 Legend
-  - ⚔️ Warrior
-  - 🔥 Phoenix
-- **Challenge Difficulty Levels** and durations
-- **Group Participation** and collective progress tracking
-- **Rewards & Recognition** for achievements
+3. **Social Features**
+   - Discover compatible fitness buddies
+   - Send and receive buddy requests
+   - Real-time chat with connected buddies
+   - View buddy profiles and goals
 
-### 🏆 Leaderboard & Ranking
-- **Global Leaderboard** - Ranked by fitness points
-- **Points System**:
-  - 10 points per workout
-  - 1 point per minute exercised
-  - 0.1 points per calorie burned
-- **Personal Rank Display** with medal indicators
-- **Group Leaderboards** for competitive fun
-- **Real-Time Rankings** updated instantly
-- **Top Performers Recognition** 🥇🥈🥉
+4. **Challenges & Competitions**
+   - Browse community challenges
+   - Join/create fitness challenges
+   - Track personal progress
+   - Earn reward badges
+   - Compete on leaderboards (individual & group)
 
-### 🏅 Achievements & Badges System
-- **10+ Unlockable Badges** including:
-  - First Step (first workout)
-  - Week Warrior (7 workouts/week)
-  - Goal Crusher (complete goal)
-  - Social Butterfly (connect with buddies)
-  - Champion (win challenge)
-  - Streak Master (30-day streak)
-  - Calorie Blaster (5K calories/month)
-  - Elite Athlete (top 10 rank)
-  - Sharing Superstar (share progress)
-  - Explorer (save gyms)
-- **Rarity Levels** - Common, Rare, Epic, Legendary, Mythic
-- **Achievement Points** earned for unlocking badges
-- **Progress Tracker** showing completion percentage
+5. **Gym Discovery**
+   - Find nearby fitness venues
+   - Filter by gym type (gym, yoga, cycling, CrossFit, etc.)
+   - Save favorite gyms
+   - Get directions via Google Maps
 
-### 📱 Social Media Integration
-- **Share Progress** on multiple platforms:
-  - 🐦 Twitter/X
-  - 📘 Facebook
-  - 📷 Instagram
-  - 💼 LinkedIn
-- **Custom Share Messages** with emojis and stats
-- **One-Click Sharing** from workouts/achievements
-- **Social Media Buttons** throughout the app
-
-### 🏢 Gym & Venue Finder
-- **Location-Based Gym Discovery** near user
-- **Filter by Type**:
-  - Gyms
-  - Yoga Studios
-  - Running Tracks
-  - CrossFit Boxes
-  - Cycling Studios
-  - Swimming Pools
-- **Venue Details**:
-  - Address and phone number
-  - Operating hours
-  - Amenities list
-  - User ratings
-  - Distance information
-- **Save Favorite Gyms** to profile
-- **Google Maps Integration** for directions
-- **Coordinate Gym Sessions** with buddies
-
-### 👥 Workout Groups
-- **Create or Join Groups** based on fitness interests
-- **Group Progress Tracking** with collective goals
-- **Team Leaderboards** within groups
-- **Group Challenges** for friendly competition
-- **Member Activity Timeline**
-- **Group Statistics** and milestones
-- **Real-Time Group Updates**
-
-### 📚 Resources & Learning
-- **Curated Workout Videos** library
-- **Fitness Articles & Tips**
-- **Exercise Guides** for different fitness levels
-- **Nutrition Information**
-- **Training Programs** for specific goals
-- **Expert Tips & Advice**
-
-### 💬 Messaging System
-- **Real-Time Chat** with fitness buddies
-- **Direct Messages** between users
-- **Sharing Workout Plans** via chat
-- **Motivational Messages** and support
-- **Message History**
-- **Online Status Indicators**
-
-### 🎨 User Interface & Design
-- **Modern, Clean Design** with professional aesthetics
-- **Dark Mode Support** for comfortable viewing
-- **Smooth Animations** using Framer Motion
-- **Responsive Design** - desktop, tablet, mobile
-- **Intuitive Navigation** with sidebar menu
-- **Beautiful Gradients** and color schemes
-- **Icons & Emojis** for visual clarity
-- **Loading States** and transitions
-
-### 🎉 Celebratory Features
-- **Confetti Animations** when reaching milestones
-- **Goal Achievement Celebrations** with encouragement
-- **Streak Notifications** and encouragement
-- **Challenge Completion Celebrations**
-- **Achievement Unlock Effects**
-
-### 📈 Progress Analytics
-- **Weekly Summary Reports**
-- **All-Time Statistics**
-- **Calorie Tracking**
-- **Duration Analytics**
-- **Workout Frequency Charts**
-- **Goal Progress Visualization**
+6. **Gamification**
+   - Earn achievements and badges
+   - Track points and rankings
+   - Join fitness groups
+   - Celebrate milestones
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 18** - UI library
-- **Vite** - Lightning-fast build tool
-- **Tailwind CSS** - Utility-first styling
-- **Framer Motion** - Smooth animations
-- **Lucide React** - Beautiful icon library
-- **React Router** - Client-side routing
-- **Recharts** - Data visualization (optional)
-
-### Backend & Database
-- **Supabase** - PostgreSQL database
-- **Supabase Auth** - Authentication
-- **Supabase Storage** - File uploads
-- **Supabase Realtime** - Live updates
-
-### Dependencies
-- `@supabase/supabase-js` - Supabase client
-- `framer-motion` - Animations
-- `react-confetti` - Celebration effects
-- `lucide-react` - Icons
-- `react-router-dom` - Routing
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 14+ and npm/yarn
-- Supabase account (free tier available)
-- Modern web browser
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/fitnesbuddy-app.git
-cd FitnessBuddyApp
+```
+React 18.2.0 + Vite 5.2.0    // UI Framework
+Tailwind CSS 3.4.1            // Styling 
+Framer Motion 10.16.4        // Animations
+Supabase JS 2.x               // Database Client
+Axios                         // HTTP Client
+Lucide React                  // Icons
+React Router DOM v6           // Routing
+React Confetti               // Effects
+Recharts                     // Charts
 ```
 
-2. **Install dependencies**
-```bash
-# Frontend
-cd FrontEnd
-npm install
-
-# Backend (if using)
-cd ../BackEnd
-npm install
+### Backend
+```
+Express.js 4.x               // API Framework
+Node.js 16+                  // Runtime
+Supabase Admin Client        // Database Admin
+Axios                        // HTTP Requests
+Google Places API            // Gym Data
+CORS, dotenv                 // Middleware
 ```
 
-3. **Set up environment variables**
-
-Create `.env` file in the FrontEnd directory:
+### Database & Infrastructure
 ```
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+Supabase (PostgreSQL)        // Database & Auth
+Supabase Storage             // File Storage (Avatars)
+Google Places API            // Location Services
+JWT Authentication           // Security
 ```
-
-4. **Start the development server**
-```bash
-cd FrontEnd
-npm run dev
-```
-
-The app will be available at `http://localhost:5173`
 
 ## 📁 Project Structure
 
 ```
-FitnessBuddyApp/
-├── FrontEnd/
+FitnessBuddyApp-main/
+├── FrontEnd/                     # React application
+│   ├── public/
 │   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/           # Page components
-│   │   ├── context/         # Context API providers
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── lib/             # Utilities and helpers
-│   │   ├── utils/           # Utility functions
-│   │   ├── App.jsx          # Main app component
-│   │   └── main.jsx         # Entry point
-│   └── package.json
-├── BackEnd/
-│   ├── controllers/         # Route controllers
-│   ├── config/              # Configuration files
-│   ├── app.js              # Express app setup
-│   ├── server.js           # Server entry point
-│   └── package.json
-└── README.md
+│   │   ├── components/          # Reusable UI components
+│   │   ├── context/             # React Context (Auth, Theme)
+│   │   ├── hooks/               # Custom hooks
+│   │   ├── lib/                 # Supabase client
+│   │   ├── pages/               # Page components (11 pages)
+│   │   ├── utils/               # Utility functions
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── package.json
+│   ├── tailwind.config.js
+│   ├── vite.config.js
+│   └── README.md
+│
+├── BackEnd/                      # Express.js server
+│   ├── config/
+│   │   └── supabaseClient.js
+│   ├── controllers/
+│   │   └── gymControllers.js
+│   ├── app.js
+│   ├── server.js
+│   ├── package.json
+│   └── README.md
+│
+├── SUPABASE_SCHEMA.sql          # Database schema & RLS policies
+├── SUPABASE_RLS_FIX.sql         # RLS fixes (run if needed)
+├── README.md                    # This file
+├── SETUP_GUIDE.md              # Detailed setup instructions
+└── IMPLEMENTATION_SUMMARY.md   # Implementation details
 ```
 
-## 📋 Database Schema
+## 🚀 Quick Start
 
-### Tables Created in Supabase:
-- `profiles` - User profile information
-- `workouts` - Workout log entries
-- `fitness_goals` - User fitness goals
-- `challenges` - Community challenges
-- `challenge_members` - Challenge participation tracking
-- `buddies` - User buddy connections
-- `saved_gyms` - Favorite gyms list
-- `achievements` - User achievement tracking
-- `chat_messages` - Direct messages between users
+### Prerequisites
+- Node.js 16+ and npm/yarn
+- Supabase account ([Create here](https://supabase.com))
+- Google Places API key ([Get here](https://developers.google.com/maps/documentation/places))
 
-## 🔑 Key Features Explained
+### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd FitnessBuddyApp-main
+```
 
-### Goal Progress Bars
-Visual percentage bars show progress toward fitness goals with color-coded status:
-- Red (0-33%) - Getting started
-- Yellow (33-66%) - Making progress
-- Green (66-100%) - Almost there!
+### 2. Frontend Setup
+```bash
+cd FrontEnd
+npm install
 
-### Points System
-Users earn points for all fitness activities:
-- Logging workouts
-- Maintaining streaks
-- Completing goals
-- Winning challenges
-- Earning achievements
+# Create .env.local
+cat > .env.local << EOF
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+EOF
+
+npm run dev  # Runs on http://localhost:5173
+```
+
+### 3. Backend Setup
+```bash
+cd ../BackEnd
+npm install
+
+# Create .env
+cat > .env << EOF
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_service_role_key
+GOOGLE_PLACES_API_KEY=your_api_key
+PORT=3001
+NODE_ENV=development
+EOF
+
+npm start  # Runs on http://localhost:3001
+```
+
+### 4. Database Setup
+1. Go to [Supabase Console](https://app.supabase.com)
+2. Select your project
+3. Go to SQL Editor
+4. Execute SQL from `SUPABASE_SCHEMA.sql`
+5. Optionally run `SUPABASE_RLS_FIX.sql` for RLS fixes
+
+## 📊 Database Schema
+
+### Core Tables
+- **profiles** - User information and settings
+- **workouts** - Logged exercise sessions
+- **challenges** - Community fitness challenges
+- **challenge_members** - User challenge participation
+- **buddies** - User connections
+- **chat_messages** - Direct messages
+- **saved_gyms** - User's favorite gyms
+- **achievements** - User badges and milestones
+- **fitness_goals** - Personal goals
+- **workout_groups** - Group challenges
+
+All tables include Row-Level Security (RLS) policies for data protection.
+
+## 🔐 Authentication
+
+### Supported Methods
+- Email/Password
+- Google OAuth
+- Facebook OAuth
+- Password Recovery
+
+### JWT Token Flow
+1. User signs up/logs in with Supabase
+2. Supabase returns JWT token
+3. Frontend stores token in localStorage
+4. Backend validates token for API requests
+5. RLS policies enforce data isolation
+
+## 🎨 Design System
+
+### Color Palette
+```
+Primary:   #0F2A1D (Dark Forest Green)
+Secondary: #6B9071 (Medium Green)  
+Dark:      #375534 (Deep Green)
+Accent:    #AEC3B0 (Light Sage)
+Light:     #E3EED4 (Cream)
+```
+
+### Responsive Breakpoints
+- Mobile: < 768px
+- Tablet: 768px - 1024px
+- Desktop: > 1024px
+
+### Animations
+- Page Transitions: 500ms spring animation
+- Button Hovers: 1.05x scale
+- Background: 15-20s loop animations
+- Messages: 0.3s spring scale-in
+
+## 📖 Pages Overview
+
+| Page | Features | Status |
+|------|----------|--------|
+| **Dashboard** | Quick links, stats summary | ✅ Complete |
+| **Profile** | Edit info, avatar upload | ✅ Complete |
+| **Workouts** | Log workouts, view history | ✅ Complete |
+| **Goals** | Create & track goals | ✅ Complete |
+| **Buddies** | Matching, connect, chat | ✅ Complete |
+| **Challenges** | Browse, join, track progress | ✅ Complete |
+| **Leaderboard** | Rankings, group join | ✅ Complete |
+| **Chat** | Real-time messaging | ✅ Complete |
+| **Gym Finder** | Search, save, unsave | ✅ Complete |
+| **Achievements** | Badges, milestones | ✅ Complete |
+| **Resources** | Tips & guides | ✅ Complete |
+| **Login** | Auth, password recovery | ✅ Complete |
+
+## 🚢 Deployment
+
+### Backend Deployment Options
+
+**Heroku**
+```bash
+heroku create your-app
+heroku config:set SUPABASE_URL=... SUPABASE_KEY=... GOOGLE_PLACES_API_KEY=...
+git push heroku main
+```
+
+**Railway / Render / Fly.io**
+- Connect GitHub repository
+- Set environment variables
+- Auto-deploy on push
+
+**VPS (DigitalOcean / AWS)**
+```bash
+npm install
+npm start  # or use PM2
+# Configure Nginx/Apache as reverse proxy
+```
+
+### Frontend Deployment Options
+
+**Vercel (Recommended)**
+```bash
+npm install -g vercel
+vercel
+# Set environment variables in Vercel dashboard
+```
+
+**Netlify**
+- Connect GitHub repo
+- Build command: `npm run build`
+- Publish directory: `dist`
+
+**AWS Amplify / Firebase Hosting**
+- Connect GitHub repo
+- Auto-deploy on push
+
+## 🔧 Configuration
+
+### Environment Variables
+
+**Frontend (.env.local)**
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_API_URL=http://localhost:3001
+```
+
+**Backend (.env)**
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your_service_role_key
+SUPABASE_ANON_KEY=your_anon_key
+GOOGLE_PLACES_API_KEY=your_api_key
+PORT=3001
+NODE_ENV=development
+```
+
+## 🎯 Key Features Implementation
+
+### Real-time Chat
+- Supabase real-time subscriptions
+- PostgreSQL change events
+- Message history persistence
+- Automatic typing indicators
 
 ### Buddy Matching Algorithm
-Connects users based on:
-1. **Goal Similarity** (weight loss, strength, etc.)
-2. **Workout Preferences** (yoga, running, gym, etc.)
-3. **Geographic Proximity** (within 10km radius)
-4. **Activity Level** (frequency of workouts)
+- Goal similarity scoring
+- Workout preference matching
+- Location proximity calculation
+- Weekly goal alignment
+- Composite match score (0-10)
 
-## 🎯 Future Enhancements
-- [ ] Wearable device integration (Apple Watch, Fitbit)
-- [ ] AI-powered workout recommendations
-- [ ] Video chat for virtual training sessions
-- [ ] Integration with popular fitness apps (Strava, MyFitnessPal)
-- [ ] Advanced analytics and ML-based insights
-- [ ] In-app payment system for premium features
-- [ ] Push notifications and reminders
-- [ ] Calendar view of workout history
-- [ ] Meal planning and nutrition integration
-- [ ] Voice-based workout logging
+### Leaderboard Ranking
+- Points calculation: (Workouts × 10) + (Minutes × 1) + (Calories × 0.1)
+- Real-time ranking updates
+- Group vs individual modes
+- Historical rank tracking
+
+### Challenge System
+- Progress tracking per member
+- Configurable targets and units
+- Reward badge system
+- Difficulty levels
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Authentication Errors**
+- Clear browser cache: Cmd+Shift+Delete
+- Check Supabase URL and keys
+- Verify auth policies in Supabase
+
+**Database Connection Issues**
+- Check Supabase project is active
+- Verify service role key has admin access
+- Check network connectivity
+
+**API Not Connecting**
+- Ensure backend is running on port 3001
+- Check CORS settings in Express
+- Verify frontend API_URL configuration
+
+**Gmail/OAuth Issues**
+- Verify OAuth credentials in Supabase
+- Check redirect URLs match exactly
+- Ensure APIs are enabled in Google Console
+
+## 📚 Documentation
+
+- [Frontend README](./FrontEnd/README.md) - React app documentation
+- [Backend README](./BackEnd/README.md) - Express server documentation
+- [Setup Guide](./SETUP_GUIDE.md) - Detailed setup instructions
+- [Schema Documentation](./SUPABASE_SCHEMA.sql) - Database schema
+- [Implementation Summary](./IMPLEMENTATION_SUMMARY.md) - Technical details
 
 ## 🤝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open Pull Request
 
 ## 📄 License
-This project is open source and available under the MIT License.
 
-## 👨‍💻 Support
-For support, please open an issue on GitHub or contact the development team.
+MIT License - See LICENSE file for details
+
+## 🌐 Live Demo
+
+[Deploy your app and add live link here]
+
+## 👤 Support & Contact
+
+- **Issues**: GitHub Issues
+- **Email**: [your-email@example.com]
+- **Discord**: [your-discord-server]
 
 ## 🙏 Acknowledgments
-- Built with ❤️ for the fitness community
-- Thanks to Supabase for amazing backend services
-- Icons by Lucide React
-- Animations powered by Framer Motion
+
+- Built with React, Vite, and Tailwind CSS
+- Database powered by Supabase
+- Animations by Framer Motion
+- Icons from Lucide React
+- UI inspired by modern fitness apps
+
+## 📈 Roadmap
+
+### Phase 1 ✅ Complete
+- Core authentication
+- Profile management
+- Workout logging
+- Buddy system
+- Challenges
+- Leaderboards
+
+### Phase 2 (Planned)
+- Advanced analytics dashboard
+- Fitness plan recommendations
+- Social feed/timeline
+- Live workout groups
+- Mobile app (React Native)
+- Video workouts library
+- Wearable integration (Fitbit, Apple Watch)
+
+### Phase 3 (Future)
+- AI workout recommendations
+- Nutrition tracking
+- Gym partnerships
+- Communities/clubs
+- Premium features
+- API for third-party apps
 
 ---
 
-## 📚 Quick Start Guide
+**Last Updated**: 2024
+**Version**: 1.0.0
 
-### For Users:
-1. **Sign Up** via email or social login
-2. **Create Profile** with fitness goals and preferences
-3. **Set Weekly Goal** (e.g., 150 minutes of exercise)
-4. **Browse Buddies** and connect with similar users
-5. **Start Logging Workouts** to track progress
-6. **Join Challenges** for extra motivation
-7. **Share Progress** on social media
-8. **Climb the Leaderboard** and earn badges!
-
-### For Developers:
-1. Set up Supabase project
-2. Configure environment variables
-3. Run `npm install` to install dependencies
-4. Run `npm run dev` to start development server
-5. Explore the codebase and start customizing!
-
----
-
-**Happy Fitness Journey! 🚀💪**
+Made with ❤️ for fitness enthusiasts

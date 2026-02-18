@@ -3,7 +3,7 @@ import { motion } from "framer-motion"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
-import { MapPin, Phone, Clock, Star, Filter, Navigation } from "lucide-react"
+import { MapPin, Phone, Clock, Star, Filter, Navigation, X, Search } from "lucide-react"
 
 export default function GymFinder() {
   const { user } = useAuth()
@@ -13,11 +13,15 @@ export default function GymFinder() {
   const [filterType, setFilterType] = useState("all")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savedGyms, setSavedGyms] = useState([])
+  const [showSavedOnly, setShowSavedOnly] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
     if (user) {
       fetchUserLocation()
       fetchGyms()
+      fetchSavedGyms()
     }
   }, [user])
 
@@ -169,11 +173,55 @@ export default function GymFinder() {
       }
 
       alert("✓ Gym saved to your favorites!")
+      fetchSavedGyms()
     } catch (error) {
       console.error("Error saving gym:", error)
     } finally {
       setSaving(false)
     }
+  }
+
+  const fetchSavedGyms = async () => {
+    try {
+      const { data } = await supabase
+        .from("saved_gyms")
+        .select("id, gym_id")
+        .eq("user_id", user.id)
+
+      if (data) {
+        setSavedGyms(data)
+      }
+    } catch (error) {
+      console.error("Error fetching saved gyms:", error)
+    }
+  }
+
+  const handleUnsaveGym = async (savedGymRecordId) => {
+    try {
+      const { error } = await supabase
+        .from("saved_gyms")
+        .delete()
+        .eq("id", savedGymRecordId)
+
+      if (error) {
+        alert("Error removing gym: " + error.message)
+        return
+      }
+
+      alert("✓ Gym removed from favorites")
+      fetchSavedGyms()
+    } catch (error) {
+      console.error("Error unsaving gym:", error)
+      alert("Error: " + error.message)
+    }
+  }
+
+  const getSavedGymRecord = (gymId) => {
+    return savedGyms.find(g => g.gym_id === gymId)
+  }
+
+  const checkIsSaved = (gymId) => {
+    return savedGyms.some(g => g.gym_id === gymId)
   }
 
   const gymTypes = ["all", "Gym", "Yoga Studio", "Outdoor Track", "CrossFit Box", "Cycling Studio", "Swimming Pool"]
@@ -214,7 +262,7 @@ export default function GymFinder() {
             <Filter className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Filter by Type</h2>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap mb-6">
             {gymTypes.map(type => (
               <motion.button
                 key={type}
@@ -231,6 +279,18 @@ export default function GymFinder() {
               </motion.button>
             ))}
           </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search gyms by name, address, or amenities..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary focus:ring-2 focus:ring-accent dark:focus:ring-darkGreen transition"
+            />
+          </div>
         </div>
 
         {/* Gyms Grid */}
@@ -243,8 +303,28 @@ export default function GymFinder() {
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredGyms.length > 0 ? (
-              filteredGyms.map((gym, index) => (
+            {filteredGyms
+              .filter(gym => {
+                const searchLower = searchQuery.toLowerCase()
+                return (
+                  gym.name?.toLowerCase().includes(searchLower) ||
+                  gym.address?.toLowerCase().includes(searchLower) ||
+                  gym.amenities?.some(a => a.toLowerCase().includes(searchLower)) ||
+                  gym.type?.toLowerCase().includes(searchLower)
+                )
+              })
+              .length > 0 ? (
+              filteredGyms
+                .filter(gym => {
+                  const searchLower = searchQuery.toLowerCase()
+                  return (
+                    gym.name?.toLowerCase().includes(searchLower) ||
+                    gym.address?.toLowerCase().includes(searchLower) ||
+                    gym.amenities?.some(a => a.toLowerCase().includes(searchLower)) ||
+                    gym.type?.toLowerCase().includes(searchLower)
+                  )
+                })
+                .map((gym, index) => (
                 <motion.div
                   key={gym.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -327,17 +407,36 @@ export default function GymFinder() {
                       href={`https://www.google.com/maps/search/${encodeURIComponent(gym.name + " " + gym.address)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-2 bg-secondary text-light font-semibold rounded-lg hover:bg-darkGreen transition text-center text-sm\"
+                      className="flex-1 py-2 bg-secondary text-light font-semibold rounded-lg hover:bg-darkGreen transition text-center text-sm"
                     >
                       🗺️ Directions
                     </a>
                     <motion.button
+                      type="button"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => handleSaveGym(gym)}
-                      className="flex-1 py-2 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition text-sm"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (checkIsSaved(gym.id)) {
+                          const record = getSavedGymRecord(gym.id)
+                          if (record) handleUnsaveGym(record.id)
+                        } else {
+                          handleSaveGym(gym)
+                        }
+                      }}
+                      className={`flex-1 py-2 font-semibold rounded-lg transition text-sm flex items-center justify-center gap-2 ${
+                        checkIsSaved(gym.id)
+                          ? "bg-red-500 text-light hover:bg-red-600 shadow-md"
+                          : "bg-gradient-to-r from-primary to-secondary text-light hover:shadow-lg"
+                      }`}
                     >
-                      ❤️ Save
+                      {checkIsSaved(gym.id) ? (
+                        <>
+                          <X className="w-4 h-4" /> Unsave
+                        </>
+                      ) : (
+                        <>❤️ Save</>
+                      )}
                     </motion.button>
                   </div>
                 </motion.div>

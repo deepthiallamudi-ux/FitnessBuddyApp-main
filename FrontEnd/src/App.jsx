@@ -6,6 +6,7 @@ import Layout from "./components/Layout"
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
 import Profile from "./pages/Profile"
+import BuddyProfileView from "./pages/BuddyProfileView"
 import Goals from "./pages/Goals"
 import Workouts from "./pages/Workouts"
 import Buddies from "./pages/Buddies"
@@ -40,6 +41,28 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <Profile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/profile/:userId"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Profile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/buddy/:buddyId"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <BuddyProfileView />
             </Layout>
           </ProtectedRoute>
         }
