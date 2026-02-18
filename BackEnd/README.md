@@ -1,52 +1,306 @@
-# Fitness Buddy - Backend
+# Fitness Buddy Backend
 
-Express.js server for the Fitness Buddy application. Provides API endpoints, integrations with Google Places API for gym discovery, and Supabase database management.
+Complete Node.js/Express REST API for the Fitness Buddy application.
 
-## 🛠️ Tech Stack
+## Structure
 
-- **Runtime**: Node.js 16+ 
-- **Framework**: Express.js 4.x
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth (JWT tokens)
-- **Gym Data**: Google Places API
-- **API Client**: Axios
-- **Middleware**: CORS, body-parser, dotenv
-- **Environment**: Node environment management
+```
+BackEnd/
+├── controllers/         # Request handlers
+│   ├── profileControllers.js
+│   ├── workoutControllers.js
+│   ├── goalsControllers.js
+│   ├── achievementsControllers.js
+│   ├── buddyControllers.js
+│   ├── chatControllers.js
+│   ├── leaderboardControllers.js
+│   └── gymControllers.js
+├── routes/            # API route definitions
+│   ├── profileRoutes.js
+│   ├── workoutRoutes.js
+│   ├── goalsRoutes.js
+│   ├── achievementsRoutes.js
+│   ├── buddyRoutes.js
+│   ├── chatRoutes.js
+│   ├── leaderboardRoutes.js
+│   └── gymRoutes.js
+├── config/
+│   └── supabaseClient.js
+├── app.js             # Express app setup
+├── server.js          # Server entry point
+├── package.json
+└── .env (not included - create manually)
+```
 
-## 📋 Prerequisites
+## Features
 
-- Node.js 16.x or higher
-- npm or yarn
-- Supabase project and credentials
-- Google Places API key
-- Environment variables configured
+✅ **Complete CRUD Operations:**
+- User Profiles
+- Workout Management
+- Goal Management
+- Achievements Tracking
+- Buddy System
+- Chat Messaging
+- Global & Cohort Leaderboards
+- Gym Finder (Google Places API)
 
-## 🚀 Installation
+✅ **Advanced Features:**
+- Intelligent points calculation
+- User matching algorithm
+- Leaderboard rankings
+- Read/unread message tracking
+- Workout statistics aggregation
 
-1. **Navigate to BackEnd directory**
+## Quick Start
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Create `.env` File
+```env
+PORT=5000
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+GOOGLE_API_KEY=your_google_places_api_key
+```
+
+### 3. Run Server
+**Development (with auto-reload):**
+```bash
+npm run dev
+```
+
+**Production:**
+```bash
+npm start
+```
+
+Server runs on `http://localhost:5000`
+
+### 4. Test API
+```bash
+# Health check
+curl http://localhost:5000/health
+
+# Get all profiles
+curl http://localhost:5000/api/profiles
+
+# Get leaderboard
+curl "http://localhost:5000/api/leaderboard?type=points&limit=10"
+```
+
+## API Endpoints
+
+### Profile Management
+```
+GET    /api/profiles                    Get all profiles
+GET    /api/profiles/:userId            Get single profile
+PUT    /api/profiles/:userId            Update profile
+DELETE /api/profiles/:userId            Delete profile
+GET    /api/profiles/search/query       Search profiles
+```
+
+### Workouts
+```
+POST   /api/workouts                    Create workout
+GET    /api/workouts/all                Get all workouts
+GET    /api/workouts/user/:userId       Get user workouts
+GET    /api/workouts/stats/:userId      Get workout stats
+PUT    /api/workouts/:workoutId         Update workout
+DELETE /api/workouts/:workoutId         Delete workout
+```
+
+### Goals
+```
+POST   /api/goals                       Create goal
+GET    /api/goals/all                   Get all goals
+GET    /api/goals/user/:userId          Get user goals
+PUT    /api/goals/:goalId               Update goal
+PUT    /api/goals/:goalId/progress      Update progress
+PUT    /api/goals/:goalId/complete      Complete goal
+DELETE /api/goals/:goalId               Delete goal
+```
+
+### Achievements
+```
+POST   /api/achievements                Create achievement
+GET    /api/achievements/all            Get all achievements
+GET    /api/achievements/user/:userId   Get user achievements
+GET    /api/achievements/counts         Get badge counts
+DELETE /api/achievements/:achievementId Delete achievement
+```
+
+### Buddy System
+```
+POST   /api/buddies                     Create request
+GET    /api/buddies/user/:userId        Get buddies
+GET    /api/buddies/pending/:userId     Get pending requests
+POST   /api/buddies/accept              Accept request
+POST   /api/buddies/reject              Reject request
+POST   /api/buddies/remove              Remove buddy
+```
+
+### Chat
+```
+POST   /api/chat/send                   Send message
+GET    /api/chat/conversation/:userId/:buddyId  Get conversation
+GET    /api/chat/user/:userId           Get user chats
+GET    /api/chat/unread/:userId         Get unread count
+PUT    /api/chat/:messageId/read        Mark as read
+PUT    /api/chat/conversation/:userId/:senderId/read  Mark conversation read
+DELETE /api/chat/:messageId             Delete message
+```
+
+### Leaderboard
+```
+GET    /api/leaderboard                 Global leaderboard
+GET    /api/leaderboard/rank/:userId    Get user rank
+GET    /api/leaderboard/cohort/:userId  Buddy leaderboard
+```
+
+### Gyms
+```
+GET    /api/gyms/nearby?lat=X&lng=Y     Find nearby gyms
+```
+
+## Database Integration
+
+The backend uses **Supabase** (PostgreSQL) as the database:
+- User profiles and authentication
+- Workout tracking
+- Goal management
+- Achievement system
+- Buddy connections
+- Chat messages
+- Leaderboard data
+
+All database operations use the Supabase client with proper error handling.
+
+## Points System
+
+The leaderboard uses an intelligent points calculation:
+
+```
+Points = (Workouts Count × 10) + (Total Minutes × 1) + (Total Calories × 0.1)
+```
+
+**Example:**
+- User logs 5 workouts
+- Total 200 minutes
+- Total 2500 calories burned
+- **Points = (5 × 10) + (200 × 1) + (2500 × 0.1) = 500**
+
+## Response Format
+
+### Success Response
+```json
+{
+  "data": {...}
+}
+```
+
+### Error Response
+```json
+{
+  "error": "Error message"
+}
+```
+
+## Key Controllers
+
+### Profile Controller
+Handles user profile management, search, and retrieval
+
+### Workout Controller
+CRUD operations for workouts, with stats aggregation
+
+### Goals Controller
+Goal creation, progress tracking, and completion
+
+### Achievements Controller
+Achievement/badge management and counting
+
+### Buddy Controller
+Buddy requests, acceptance, rejection, and removal
+
+### Chat Controller
+Message sending, conversation retrieval, read status
+
+### Leaderboard Controller
+Global rankings, user ranks, and cohort leaderboards
+
+### Gym Controller
+Integration with Google Places API for nearby gyms
+
+## Environment Setup
+
+### Required Variables
+```env
+PORT=5000                           # Express server port
+SUPABASE_URL=https://xxx.supabase.co  # Your Supabase URL
+SUPABASE_SERVICE_ROLE_KEY=xxx       # Service role key for admin operations
+GOOGLE_API_KEY=xxx                  # Google Places API key
+```
+
+### Getting Credentials
+
+1. **Supabase**: https://app.supabase.com
+   - Project settings → API
+   - Copy the URL and service role key
+
+2. **Google API**: https://console.cloud.google.com
+   - Enable Places API
+   - Create API key from credentials
+
+## Development Tips
+
+- Use `npm run dev` during development for auto-reload
+- Check the `API_DOCUMENTATION.md` for detailed endpoint info
+- All endpoints use async/await with proper error handling
+- Database queries use Supabase RLS (Row Level Security)
+- CORS is enabled for frontend communication
+
+## Testing
+
+Test endpoints using:
+- **cURL** - Command line
+- **Postman** - GUI tool
+- **Thunder Client** - VS Code extension
+- **npm requests** - Programmatically
+
+## Production Deployment
+
+1. Set environment variables on your hosting platform
+2. Run `npm install` to install dependencies
+3. Start with `npm start`
+4. Consider using PM2 for process management:
    ```bash
-   cd BackEnd
+   npm install -g pm2
+   pm2 start server.js --name "fitness-buddy-api"
    ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+## Troubleshooting
 
-3. **Create `.env` file** with required variables:
-   ```env
-   # Supabase
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_KEY=your_supabase_service_key
-   SUPABASE_ANON_KEY=your_supabase_anon_key
+### Server won't start
+- Check PORT is not in use
+- Verify `.env` file exists
+- Check SUPABASE_URL and keys are correct
 
-   # Google Places API
-   GOOGLE_PLACES_API_KEY=your_google_places_api_key
+### API returns 500 errors
+- Check Supabase connection in console
+- Verify RLS policies allow operations
+- Check error details in server logs
 
-   # Server
-   PORT=3001
-   NODE_ENV=development
-   ```
+### Database operations failing
+- Ensure SUPABASE_SERVICE_ROLE_KEY is the service role (not anon key)
+- Verify tables exist in Supabase
+- Check RLS policies allow the operations
+
+---
+
+**Backend Complete!** 🎉 All endpoints implemented and ready for integration with the frontend.
 
 4. **Start the server**
    ```bash

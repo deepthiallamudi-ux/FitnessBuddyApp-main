@@ -12,7 +12,9 @@ export default function Buddies() {
   const navigate = useNavigate()
   const [recommended, setRecommended] = useState([])
   const [connectedBuddies, setConnectedBuddies] = useState([])
-  const [viewMode, setViewMode] = useState("recommended") // recommended or connected
+  const [pendingRequests, setPendingRequests] = useState([]) // Requests user sent
+  const [incomingRequests, setIncomingRequests] = useState([]) // Requests from others
+  const [viewMode, setViewMode] = useState("recommended") // recommended, connected, pending, or incoming
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -76,6 +78,20 @@ export default function Buddies() {
           .eq("user_id", user.id)
           .eq("status", "connected")
 
+        // Fetch pending requests (sent by user)
+        const { data: pendingList } = await supabase
+          .from("buddies")
+          .select("buddy_id")
+          .eq("user_id", user.id)
+          .eq("status", "pending")
+
+        // Fetch incoming requests (from other users)
+        const { data: incomingList } = await supabase
+          .from("buddies")
+          .select("user_id")
+          .eq("buddy_id", user.id)
+          .eq("status", "pending")
+
         if (allUsers && currentProfile) {
           const matches = matchUsers(currentProfile, allUsers)
           // Combine dummy buddies with real matches
@@ -96,6 +112,32 @@ export default function Buddies() {
             setConnectedBuddies(connectedProfiles)
           }
         }
+
+        // Fetch profiles for pending requests sent by user
+        if (pendingList && pendingList.length > 0) {
+          const pendingIds = pendingList.map(p => p.buddy_id)
+          const { data: pendingProfiles } = await supabase
+            .from("profiles")
+            .select("*")
+            .in("id", pendingIds)
+
+          if (pendingProfiles) {
+            setPendingRequests(pendingProfiles)
+          }
+        }
+
+        // Fetch profiles for incoming requests
+        if (incomingList && incomingList.length > 0) {
+          const incomingIds = incomingList.map(r => r.user_id)
+          const { data: incomingProfiles } = await supabase
+            .from("profiles")
+            .select("*")
+            .in("id", incomingIds)
+
+          if (incomingProfiles) {
+            setIncomingRequests(incomingProfiles)
+          }
+        }
       } catch (error) {
         console.error("Error fetching buddies:", error)
       } finally {
@@ -114,26 +156,46 @@ export default function Buddies() {
         return
       }
 
+      // Send as pending request, not directly connected
       const { error } = await supabase.from("buddies").insert([
         {
           user_id: user.id,
           buddy_id: buddyId,
-          status: "connected",
-          created_at: new Date()
+          status: "pending"
         }
       ])
 
       if (error) {
         if (error.message.includes("duplicate")) {
-          alert("Already connected with this buddy!")
+          alert("Already sent a request to this user!")
         } else {
           throw error
         }
         return
       }
 
-      alert("✅ Connected successfully!")
-      // Refresh the list
+      alert("✅ Request sent! Waiting for them to accept...")
+      
+      // Fetch updated pending list
+      const { data: updatedPending } = await supabase
+        .from("buddies")
+        .select("buddy_id")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+
+      if (updatedPending && updatedPending.length > 0) {
+        const pendingIds = updatedPending.map(p => p.buddy_id)
+        const { data: pendingProfiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", pendingIds)
+
+        if (pendingProfiles) {
+          setPendingRequests(pendingProfiles)
+        }
+      }
+
+      // Also update recommended list
       const { data: allUsers } = await supabase
         .from("profiles")
         .select("*")
@@ -154,6 +216,149 @@ export default function Buddies() {
       }
     } catch (error) {
       alert("Error connecting: " + error.message)
+    }
+  }
+
+  const handleAcceptRequest = async (requesterId) => {
+    try {
+      // Update the original request to connected
+      const { error: error1 } = await supabase
+        .from("buddies")
+        .update({ status: "connected" })
+        .eq("user_id", requesterId)
+        .eq("buddy_id", user.id)
+
+      if (error1) throw error1
+
+      // Create reciprocal connection
+      const { error: error2 } = await supabase
+        .from("buddies")
+        .insert({
+          user_id: user.id,
+          buddy_id: requesterId,
+          status: "connected"
+        })
+
+      if (error2) throw error2
+
+      alert("✅ Request accepted!")
+
+      // Refresh incoming and connected lists
+      const { data: incomingList } = await supabase
+        .from("buddies")
+        .select("user_id")
+        .eq("buddy_id", user.id)
+        .eq("status", "pending")
+
+      const { data: buddyList } = await supabase
+        .from("buddies")
+        .select("buddy_id")
+        .eq("user_id", user.id)
+        .eq("status", "connected")
+
+      if (incomingList && incomingList.length > 0) {
+        const incomingIds = incomingList.map(r => r.user_id)
+        const { data: incomingProfiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", incomingIds)
+
+        if (incomingProfiles) {
+          setIncomingRequests(incomingProfiles)
+        }
+      } else {
+        setIncomingRequests([])
+      }
+
+      if (buddyList && buddyList.length > 0) {
+        const buddyIds = buddyList.map(b => b.buddy_id)
+        const { data: connectedProfiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", buddyIds)
+
+        if (connectedProfiles) {
+          setConnectedBuddies(connectedProfiles)
+        }
+      }
+    } catch (error) {
+      alert("Error accepting request: " + error.message)
+    }
+  }
+
+  const handleRejectRequest = async (requesterId) => {
+    try {
+      const { error } = await supabase
+        .from("buddies")
+        .delete()
+        .eq("user_id", requesterId)
+        .eq("buddy_id", user.id)
+
+      if (error) throw error
+
+      alert("✓ Request rejected")
+
+      // Refresh incoming list
+      const { data: incomingList } = await supabase
+        .from("buddies")
+        .select("user_id")
+        .eq("buddy_id", user.id)
+        .eq("status", "pending")
+
+      if (incomingList && incomingList.length > 0) {
+        const incomingIds = incomingList.map(r => r.user_id)
+        const { data: incomingProfiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", incomingIds)
+
+        if (incomingProfiles) {
+          setIncomingRequests(incomingProfiles)
+        }
+      } else {
+        setIncomingRequests([])
+        setViewMode("recommended")
+      }
+    } catch (error) {
+      alert("Error rejecting request: " + error.message)
+    }
+  }
+
+  const handleCancelRequest = async (buddyId) => {
+    try {
+      const { error } = await supabase
+        .from("buddies")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("buddy_id", buddyId)
+
+      if (error) throw error
+
+      alert("✓ Request cancelled")
+
+      // Refresh pending list
+      const { data: updatedPending } = await supabase
+        .from("buddies")
+        .select("buddy_id")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+
+      if (updatedPending && updatedPending.length > 0) {
+        const pendingIds = updatedPending.map(p => p.buddy_id)
+        const { data: pendingProfiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", pendingIds)
+
+        if (pendingProfiles) {
+          setPendingRequests(pendingProfiles)
+        }
+      } else {
+        setPendingRequests([])
+        setViewMode("recommended")
+      }
+    } catch (error) {
+      alert("Error cancelling request: " + error.message)
     }
   }
 
@@ -181,7 +386,7 @@ export default function Buddies() {
           </div>
 
           {/* View Toggle */}
-          <div className="flex gap-4 mb-8 bg-white dark:bg-gray-900 p-3 rounded-2xl shadow-lg w-fit">
+          <div className="flex gap-4 mb-8 bg-white dark:bg-gray-900 p-3 rounded-2xl shadow-lg w-fit flex-wrap">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -207,6 +412,34 @@ export default function Buddies() {
               <CheckCircle className="w-4 h-4" />
               Connected ({connectedBuddies.length})
             </motion.button>
+            {pendingRequests.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setViewMode("pending")}
+                className={`px-6 py-2 rounded-lg font-semibold transition ${
+                  viewMode === "pending"
+                    ? "bg-gradient-to-r from-primary to-secondary text-light"
+                    : "bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                ⏳ Pending ({pendingRequests.length})
+              </motion.button>
+            )}
+            {incomingRequests.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setViewMode("incoming")}
+                className={`px-6 py-2 rounded-lg font-semibold transition flex items-center gap-2 ${
+                  viewMode === "incoming"
+                    ? "bg-gradient-to-r from-primary to-secondary text-light"
+                    : "bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                📨 Requests ({incomingRequests.length})
+              </motion.button>
+            )}
           </div>
 
           {/* Search Bar */}
@@ -349,7 +582,7 @@ export default function Buddies() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => navigate("/chat")}
+                            onClick={() => handleChatBuddy(buddy)}
                             className="flex-1 py-2 bg-gradient-to-br from-secondary to-accent text-light font-semibold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
                           >
                             <MessageCircle className="w-4 h-4" />
@@ -463,6 +696,112 @@ export default function Buddies() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Pending Requests */}
+          {viewMode === "pending" && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pendingRequests.length > 0 ? (
+                pendingRequests.map((buddy, index) => (
+                  <motion.div
+                    key={buddy.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6"
+                  >
+                    <div className="flex items-start gap-4 mb-4">
+                      {buddy.avatar_url ? (
+                        <img
+                          src={buddy.avatar_url}
+                          alt={buddy.username}
+                          className="w-16 h-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                          {buddy.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{buddy.username}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">⏳ Waiting for acceptance...</p>
+                      </div>
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleCancelRequest(buddy.id)}
+                      className="w-full py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 font-semibold rounded-lg hover:bg-red-200 transition"
+                    >
+                      ✕ Cancel Request
+                    </motion.button>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-gray-600 dark:text-gray-400">No pending requests</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Incoming Requests */}
+          {viewMode === "incoming" && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {incomingRequests.length > 0 ? (
+                incomingRequests.map((buddy, index) => (
+                  <motion.div
+                    key={buddy.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6"
+                  >
+                    <div className="flex items-start gap-4 mb-4">
+                      {buddy.avatar_url ? (
+                        <img
+                          src={buddy.avatar_url}
+                          alt={buddy.username}
+                          className="w-16 h-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-bold text-lg">
+                          {buddy.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">{buddy.username}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">📨 Wants to connect</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleAcceptRequest(buddy.id)}
+                        className="flex-1 py-2 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 font-semibold rounded-lg hover:bg-green-200 transition"
+                      >
+                        ✓ Accept
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleRejectRequest(buddy.id)}
+                        className="flex-1 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 font-semibold rounded-lg hover:bg-red-200 transition"
+                      >
+                        ✕ Reject
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-gray-600 dark:text-gray-400">No incoming requests</p>
+                </div>
+              )}
+            </div>
           )}
         </motion.div>
       </div>

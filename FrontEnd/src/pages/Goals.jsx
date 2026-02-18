@@ -4,7 +4,27 @@ import Confetti from "react-confetti"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
-import { Plus, Edit2, Trash2, Target, Trophy, Zap, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, Edit2, Trash2, Target, Trophy, Zap, ChevronDown, ChevronUp, Calendar } from "lucide-react"
+
+// Calculate automatic deadline based on goal type
+const calculateDeadline = (goalType) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  if (goalType === "daily") {
+    // Same day
+    return today.toISOString().split('T')[0]
+  } else if (goalType === "weekly") {
+    // 7 days from today
+    const weekLater = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+    return weekLater.toISOString().split('T')[0]
+  } else if (goalType === "monthly") {
+    // End of current month
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    return endOfMonth.toISOString().split('T')[0]
+  }
+  return today.toISOString().split('T')[0]
+}
 
 export default function Goals() {
   const { user } = useAuth()
@@ -62,16 +82,13 @@ export default function Goals() {
       return
     }
 
-    if (editingId) {
-      // Calculate automatic deadline if not set
-      let deadline = formData.deadline
-      if (!deadline) {
-        const today = new Date()
-        if (goalTypeLocal === "daily") deadline = new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        else if (goalTypeLocal === "weekly") deadline = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        else if (goalTypeLocal === "monthly") deadline = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      }
+    // Calculate automatic deadline if not manually set
+    let deadline = formData.deadline
+    if (!deadline) {
+      deadline = calculateDeadline(goalTypeLocal)
+    }
 
+    if (editingId) {
       const updateData = { ...formData, goal_type: goalTypeLocal, deadline }
       
       const { error } = await supabase
@@ -86,15 +103,6 @@ export default function Goals() {
 
       setEditingId(null)
     } else {
-      // Calculate automatic deadline based on goal type
-      let deadline = formData.deadline
-      if (!deadline) {
-        const today = new Date()
-        if (goalTypeLocal === "daily") deadline = new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        else if (goalTypeLocal === "weekly") deadline = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        else if (goalTypeLocal === "monthly") deadline = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      }
-
       const newGoal = {
         user_id: user.id,
         ...formData,
@@ -126,6 +134,10 @@ export default function Goals() {
     setShowForm(false)
     setEditingId(null)
     fetchGoals()
+    
+    // Trigger achievements update IMMEDIATELY
+    window.dispatchEvent(new Event('achievementsUpdate'))
+    window.dispatchEvent(new Event('leaderboardUpdate'))
   }
 
   const handleDelete = async (id) => {
@@ -198,6 +210,12 @@ export default function Goals() {
     }
 
     fetchGoals()
+    
+    // Trigger achievements update
+    setTimeout(() => {
+      window.dispatchEvent(new Event('achievementsUpdate'))
+      window.dispatchEvent(new Event('leaderboardUpdate'))
+    }, 300)
   }
 
   const getProgressPercentage = (goal) => {
@@ -290,6 +308,11 @@ export default function Goals() {
                     <option value="weekly">Weekly Goal</option>
                     <option value="monthly">Monthly Goal</option>
                   </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    {goalTypeLocal === "daily" && "⏱️ Deadline: Today"}
+                    {goalTypeLocal === "weekly" && "📅 Deadline: 7 days from today"}
+                    {goalTypeLocal === "monthly" && "📊 Deadline: End of month"}
+                  </p>
                 </div>
 
                 <div>
@@ -344,13 +367,26 @@ export default function Goals() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Deadline</label>
-                  <input
-                    type="date"
-                    value={formData.deadline}
-                    onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary focus:ring-2 focus:ring-accent dark:focus:ring-darkGreen transition"
-                  />
+                  <label className="block text-sm font-semibold mb-2">Deadline (Optional)</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={formData.deadline}
+                      onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                      className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-primary focus:ring-2 focus:ring-accent dark:focus:ring-darkGreen transition"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    Auto: {(() => {
+                      const autoDeadline = calculateDeadline(goalTypeLocal)
+                      const date = new Date(autoDeadline)
+                      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                    })()}
+                    {formData.deadline && formData.deadline !== calculateDeadline(goalTypeLocal) && (
+                      <span className="text-orange-600 dark:text-orange-400 font-semibold">(custom)</span>
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -495,11 +531,28 @@ export default function Goals() {
                      goal.goal_type === 'weekly' ? '📆 Weekly' :
                      '📊 Monthly'}
                   </span>
-                  {goal.deadline && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Due: {new Date(goal.deadline).toLocaleDateString()}
-                    </span>
-                  )}
+                  {goal.deadline && (() => {
+                    const deadline = new Date(goal.deadline)
+                    const today = new Date()
+                    today.setHours(0, 0, 0, 0)
+                    const daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24))
+                    const isOverdue = daysLeft < 0
+                    const isToday = daysLeft === 0
+                    
+                    return (
+                      <span className={`text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1 ${
+                        isOverdue ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200' :
+                        isToday ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' :
+                        daysLeft <= 3 ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200' :
+                        'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200'
+                      }`}>
+                        <Calendar className="w-3 h-3" />
+                        {isOverdue ? `Overdue by ${Math.abs(daysLeft)}d` :
+                         isToday ? 'Due Today!' :
+                         `${daysLeft}d left`}
+                      </span>
+                    )
+                  })()}
                 </div>
 
                 {/* Update Progress Input */}

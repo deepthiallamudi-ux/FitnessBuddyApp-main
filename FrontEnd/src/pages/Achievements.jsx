@@ -13,15 +13,17 @@ export default function Achievements() {
   useEffect(() => {
     if (user) fetchAchievements()
     
-    // Listen for updates from deletions
+    // Listen for updates
     const handleUpdate = () => {
       if (user) {
+        console.log("Achievement update event triggered, refetching...")
         fetchAchievements()
       }
     }
     
     window.addEventListener('achievementsUpdate', handleUpdate)
     window.addEventListener('leaderboardUpdate', handleUpdate)
+    
     return () => {
       window.removeEventListener('achievementsUpdate', handleUpdate)
       window.removeEventListener('leaderboardUpdate', handleUpdate)
@@ -39,6 +41,97 @@ export default function Achievements() {
 
       if (data) {
         setAchievements(data)
+        
+        // Auto-create week_warrior achievement if not exists
+        const hasWeekWarrior = data.some(a => a.badge_type === "week_warrior")
+        if (!hasWeekWarrior) {
+          const { data: workouts } = await supabase
+            .from("workouts")
+            .select("created_at")
+            .eq("user_id", user.id)
+          
+          if (workouts) {
+            const last7Days = workouts.filter(w => {
+              const workoutDate = new Date(w.created_at)
+              const now = new Date()
+              const diff = (now - workoutDate) / (1000 * 60 * 60 * 24)
+              return diff <= 7
+            })
+            
+            if (last7Days.length >= 7) {
+              await supabase.from("achievements").insert([{
+                user_id: user.id,
+                badge_type: "week_warrior",
+                created_at: new Date()
+              }])
+              
+              const { data: updatedAchievements } = await supabase
+                .from("achievements")
+                .select("*")
+                .eq("user_id", user.id)
+                .order("created_at", { ascending: false })
+              if (updatedAchievements) setAchievements(updatedAchievements)
+            }
+          }
+        }
+        
+        // Auto-create goal_completed if not exists but has completed goals
+        const hasGoalCompleted = data.some(a => a.badge_type === "goal_completed" || a.badge_type === "goal_reached")
+        if (!hasGoalCompleted) {
+          const { data: goals } = await supabase
+            .from("fitness_goals")
+            .select("id, current, target")
+            .eq("user_id", user.id)
+          
+          if (goals && goals.some(g => g.current >= g.target)) {
+            await supabase.from("achievements").insert([{
+              user_id: user.id,
+              badge_type: "goal_completed",
+              created_at: new Date()
+            }])
+            
+            const { data: updatedAchievements } = await supabase
+              .from("achievements")
+              .select("*")
+              .eq("user_id", user.id)
+              .order("created_at", { ascending: false })
+            if (updatedAchievements) setAchievements(updatedAchievements)
+          }
+        }
+        
+        // Auto-create calorie_blaster if not exists (5000 calories in a month)
+        const hasCalorieBlaster = data.some(a => a.badge_type === "calorie_blaster")
+        if (!hasCalorieBlaster) {
+          const { data: workouts } = await supabase
+            .from("workouts")
+            .select("calories, created_at")
+            .eq("user_id", user.id)
+          
+          if (workouts) {
+            const lastMonth = workouts.filter(w => {
+              const workoutDate = new Date(w.created_at)
+              const now = new Date()
+              const diff = (now - workoutDate) / (1000 * 60 * 60 * 24)
+              return diff <= 30
+            })
+            
+            const totalCalories = lastMonth.reduce((sum, w) => sum + (w.calories || 0), 0)
+            if (totalCalories >= 5000) {
+              await supabase.from("achievements").insert([{
+                user_id: user.id,
+                badge_type: "calorie_blaster",
+                created_at: new Date()
+              }])
+              
+              const { data: updatedAchievements } = await supabase
+                .from("achievements")
+                .select("*")
+                .eq("user_id", user.id)
+                .order("created_at", { ascending: false })
+              if (updatedAchievements) setAchievements(updatedAchievements)
+            }
+          }
+        }
       }
     } catch (error) {
       console.error("Error fetching achievements:", error)
@@ -92,7 +185,7 @@ export default function Achievements() {
       icon: "🎯",
       points: 100,
       rarity: "legendary",
-      unlocked: achievements.some(a => a.badge_type === "goal_reached")
+      unlocked: achievements.some(a => a.badge_type === "goal_completed" || a.badge_type === "goal_reached")
     },
     {
       id: "social_butterfly",

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { motion } from "framer-motion"
-import { Camera, MapPin, Trophy, Zap, User, Calendar, Lock, ArrowLeft } from "lucide-react"
+import { Camera, MapPin, Trophy, Zap, User, Calendar, Lock, ArrowLeft, X, Edit2, Check } from "lucide-react"
 import PageTransition from "../components/PageTransition"
 
 
@@ -33,6 +33,8 @@ export default function Profile() {
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [originalAvatarUrl, setOriginalAvatarUrl] = useState(null)
 
   useEffect(() => {
     if (navigator.geolocation && !isViewingOther) {
@@ -64,6 +66,7 @@ export default function Profile() {
         setFitnessGoal(data.goal || "")
         setPreferredWorkout(data.workout || "")
         setAvatarUrl(data.avatar_url || null)
+        setOriginalAvatarUrl(data.avatar_url || null)
         setLatitude(data.latitude || null)
         setLongitude(data.longitude || null)
       }
@@ -71,6 +74,34 @@ export default function Profile() {
 
     fetchProfile()
   }, [user, profileUserId])
+
+  const handleDeleteAvatar = async () => {
+    if (!confirm("Are you sure you want to delete your profile picture?")) return
+    
+    try {
+      const fileExt = user.id
+      const fileName = `${fileExt}`
+      
+      // Delete from storage
+      const { error } = await supabase.storage
+        .from("avatars")
+        .remove([fileName])
+
+      if (error) throw error
+
+      setAvatarUrl(null)
+      setAvatarFile(null)
+    } catch (error) {
+      alert("Error deleting avatar: " + error.message)
+    }
+  }
+
+  const handleCancel = () => {
+    setIsEditing(false)
+    setAvatarFile(null)
+    setAvatarUrl(originalAvatarUrl)
+    setShowPasswordForm(false)
+  }
 
 const handleSubmit = async (e) => {
   e.preventDefault()
@@ -149,6 +180,9 @@ const handleSubmit = async (e) => {
       alert("Error saving profile: " + error.message)
     } else {
       setSuccess(true)
+      setOriginalAvatarUrl(uploadedAvatarUrl)
+      setAvatarFile(null)
+      setIsEditing(false)
       setTimeout(() => setSuccess(false), 3000)
     }
   } catch (error) {
@@ -233,31 +267,44 @@ const handleSubmit = async (e) => {
           )}
 
           <form onSubmit={(e) => {
-            if (isViewingOther) e.preventDefault()
+            if (isViewingOther || !isEditing) e.preventDefault()
             else handleSubmit(e)
           }} className="space-y-6">
             {/* Avatar Section */}
             <div className="flex flex-col items-center mb-8">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4 overflow-hidden">
+              <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4 overflow-hidden">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <User className="w-12 h-12 text-white" />
                 )}
               </div>
-              {!isViewingOther && (
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                  />
-                  <div className="flex items-center gap-2 px-4 py-2 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-800 transition">
-                    <Camera className="w-4 h-4" />
-                    <span>Upload Photo</span>
-                  </div>
-                </label>
+              {!isViewingOther && isEditing && (
+                <div className="flex flex-col gap-2 items-center">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    <div className="flex items-center gap-2 px-4 py-2 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-800 transition">
+                      <Camera className="w-4 h-4" />
+                      <span>Change Photo</span>
+                    </div>
+                  </label>
+                  {avatarUrl && (
+                    <motion.button
+                      type="button"
+                      onClick={handleDeleteAvatar}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition"
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Delete Photo</span>
+                    </motion.button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -271,11 +318,11 @@ const handleSubmit = async (e) => {
                 </label>
                 <input
                   type="text"
-                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
                   placeholder="Your name"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  disabled={isViewingOther}
+                  disabled={!isEditing || isViewingOther}
                 />
               </div>
 
@@ -287,13 +334,13 @@ const handleSubmit = async (e) => {
                 </label>
                 <input
                   type="number"
-                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
                   placeholder="Your age"
                   min="13"
                   max="120"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
-                  disabled={isViewingOther}
+                  disabled={!isEditing || isViewingOther}
                 />
               </div>
 
@@ -305,11 +352,11 @@ const handleSubmit = async (e) => {
                 </label>
                 <input
                   type="text"
-                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
                   placeholder="City, Country"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  disabled={isViewingOther}
+                  disabled={!isEditing || isViewingOther}
                 />
               </div>
 
@@ -335,10 +382,10 @@ const handleSubmit = async (e) => {
                   Fitness Goal
                 </label>
                 <select
-                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
                   value={fitnessGoal}
                   onChange={(e) => setFitnessGoal(e.target.value)}
-                  disabled={isViewingOther}
+                  disabled={!isEditing || isViewingOther}
                 >
                   <option value="">Select a goal</option>
                   <option value="Weight Loss">Weight Loss</option>
@@ -357,10 +404,10 @@ const handleSubmit = async (e) => {
                   Preferred Workout
                 </label>
                 <select
-                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                  className={`w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
                   value={preferredWorkout}
                   onChange={(e) => setPreferredWorkout(e.target.value)}
-                  disabled={isViewingOther}
+                  disabled={!isEditing || isViewingOther}
                 >
                   <option value="">Select workout type</option>
                   <option value="Running">Running</option>
@@ -380,7 +427,7 @@ const handleSubmit = async (e) => {
             <div className="border-t-2 border-gray-200 dark:border-gray-700 my-8"></div>
 
             {/* Change Password Section */}
-            {!isViewingOther && (
+            {!isViewingOther && isEditing && (
               <>
                 <motion.button
                   type="button"
@@ -453,17 +500,43 @@ const handleSubmit = async (e) => {
             {/* Submit Button */}
             {!isViewingOther && (
               <div className="flex gap-4 mt-8">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-4 bg-gradient-to-r from-primary to-secondary text-light font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50"
-                >
-                  {loading ? "Saving..." : "✓ Save Profile"}
-                </motion.button>
+                {!isEditing ? (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="flex-1 py-4 bg-gradient-to-r from-primary to-secondary text-light font-bold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
+                  >
+                    <Edit2 className="w-5 h-5" />
+                    Edit Profile
+                  </motion.button>
+                ) : (
+                  <>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 py-4 bg-gradient-to-r from-primary to-secondary text-light font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Check className="w-5 h-5" />
+                      {loading ? "Saving..." : "Save Profile"}
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button"
+                      onClick={handleCancel}
+                      className="flex-1 py-4 bg-gray-400 dark:bg-gray-600 text-light font-bold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
+                    >
+                      <X className="w-5 h-5" />
+                      Cancel
+                    </motion.button>
+                  </>
+                )}
 
-                {showPasswordForm && (
+                {showPasswordForm && isEditing && (
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}

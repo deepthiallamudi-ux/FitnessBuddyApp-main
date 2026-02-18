@@ -186,20 +186,20 @@ ALTER TABLE achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Users can view their own profile
-CREATE POLICY "Users can view their own profile"
+-- Profiles: Authenticated users can view all profiles
+CREATE POLICY "Authenticated users can view all profiles"
   ON profiles FOR SELECT
-  USING (id = auth.uid());
+  USING (auth.role() = 'authenticated');
 
 -- Profiles: Users can update their own profile
 CREATE POLICY "Users can update their own profile"
   ON profiles FOR UPDATE
   USING (id = auth.uid());
 
--- Workouts: Users can view their own workouts
-CREATE POLICY "Users can view their own workouts"
+-- Workouts: Authenticated users can view all workouts
+CREATE POLICY "Authenticated users can view all workouts"
   ON workouts FOR SELECT
-  USING (user_id = auth.uid());
+  USING (auth.role() = 'authenticated');
 
 -- Workouts: Users can insert their own workouts
 CREATE POLICY "Users can insert workouts"
@@ -211,10 +211,10 @@ CREATE POLICY "Users can update their own workouts"
   ON workouts FOR UPDATE
   USING (user_id = auth.uid());
 
--- Fitness Goals: Users can view their own goals
-CREATE POLICY "Users can view their own goals"
+-- Fitness Goals: Authenticated users can view all goals
+CREATE POLICY "Authenticated users can view all goals"
   ON fitness_goals FOR SELECT
-  USING (user_id = auth.uid());
+  USING (auth.role() = 'authenticated');
 
 -- Fitness Goals: Users can manage their own goals
 CREATE POLICY "Users can manage their own goals"
@@ -230,6 +230,41 @@ CREATE POLICY "Users can view their messages"
 CREATE POLICY "Users can send messages"
   ON chat_messages FOR INSERT
   WITH CHECK (sender_id = auth.uid());
+
+-- Achievements: Authenticated users can view all achievements
+CREATE POLICY "Authenticated users can view all achievements"
+  ON achievements FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- Achievements: Users can create/manage their own achievements
+CREATE POLICY "Users can create their own achievements"
+  ON achievements FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- Buddies: Users can view all buddy connections
+CREATE POLICY "Authenticated users can view buddies"
+  ON buddies FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- Buddies: Users can manage their own buddy connections
+CREATE POLICY "Users can create buddy requests"
+  ON buddies FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- Buddies: Users can update their own buddy requests
+CREATE POLICY "Users can update buddy requests"
+  ON buddies FOR UPDATE
+  USING (user_id = auth.uid());
+
+-- Saved Gyms: Users can view all saved gyms
+CREATE POLICY "Authenticated users can view saved gyms"
+  ON saved_gyms FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- Saved Gyms: Users can create/update their own saved gyms
+CREATE POLICY "Users can manage their own saved gyms"
+  ON saved_gyms FOR ALL
+  USING (user_id = auth.uid());
 
 -- ============================================
 -- HELP: How to use this schema

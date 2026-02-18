@@ -138,7 +138,101 @@ export default function Workouts() {
       setDistance("")
       setNotes("")
       setShowForm(false)
+      
+      // Award achievements based on workout activity
+      if (!editingId) {
+        try {
+          // 1. Check for first workout achievement
+          const { data: firstWorkout } = await supabase
+            .from("achievements")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("badge_type", "first_workout")
+          
+          if (firstWorkout && firstWorkout.length === 0) {
+            // First workout - create achievement
+            await supabase.from("achievements").insert([{
+              user_id: user.id,
+              badge_type: "first_workout",
+              created_at: new Date()
+            }])
+          }
+
+          // 2. Check for week warrior (7 workouts in last 7 days)
+          const { data: weekWarrior } = await supabase
+            .from("achievements")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("badge_type", "week_warrior")
+          
+          if (weekWarrior && weekWarrior.length === 0) {
+            // Check if user has 7+ workouts in last 7 days
+            const { data: allWorkouts } = await supabase
+              .from("workouts")
+              .select("created_at")
+              .eq("user_id", user.id)
+            
+            if (allWorkouts) {
+              const last7Days = allWorkouts.filter(w => {
+                const workoutDate = new Date(w.created_at)
+                const now = new Date()
+                const diff = (now - workoutDate) / (1000 * 60 * 60 * 24)
+                return diff <= 7
+              })
+              
+              if (last7Days.length >= 7) {
+                // Award week warrior
+                await supabase.from("achievements").insert([{
+                  user_id: user.id,
+                  badge_type: "week_warrior",
+                  created_at: new Date()
+                }])
+              }
+            }
+          }
+
+          // 3. Check for calorie blaster (5000 calories in a month)
+          const { data: calorieBlaster } = await supabase
+            .from("achievements")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("badge_type", "calorie_blaster")
+          
+          if (calorieBlaster && calorieBlaster.length === 0) {
+            const { data: monthWorkouts } = await supabase
+              .from("workouts")
+              .select("calories")
+              .eq("user_id", user.id)
+            
+            if (monthWorkouts) {
+              const lastMonth = monthWorkouts.filter(w => {
+                const workoutDate = new Date(w.created_at)
+                const now = new Date()
+                const diff = (now - workoutDate) / (1000 * 60 * 60 * 24)
+                return diff <= 30
+              })
+              
+              const totalCalories = lastMonth.reduce((sum, w) => sum + (w.calories || 0), 0)
+              if (totalCalories >= 5000) {
+                // Award calorie blaster
+                await supabase.from("achievements").insert([{
+                  user_id: user.id,
+                  badge_type: "calorie_blaster",
+                  created_at: new Date()
+                }])
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error checking achievements:", error)
+        }
+      }
+      
       fetchWorkouts()
+      
+      // Trigger achievements update IMMEDIATELY
+      window.dispatchEvent(new Event('achievementsUpdate'))
+      window.dispatchEvent(new Event('leaderboardUpdate'))
     } catch (error) {
       alert("Error: " + error.message)
     }
@@ -168,12 +262,10 @@ export default function Workouts() {
         }
         
         alert("✓ Workout deleted successfully!")
-        // Refresh data from server to ensure consistency
-        setTimeout(() => {
-          fetchWorkouts()
-          window.dispatchEvent(new Event('leaderboardUpdate'))
-          window.dispatchEvent(new Event('achievementsUpdate'))
-        }, 500)
+        // Refresh data and dispatch events immediately
+        window.dispatchEvent(new Event('leaderboardUpdate'))
+        window.dispatchEvent(new Event('achievementsUpdate'))
+        fetchWorkouts()
       } catch (error) {
         alert("Error: " + error.message)
         fetchWorkouts()

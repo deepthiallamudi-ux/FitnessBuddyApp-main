@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 import { motion } from "framer-motion"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
@@ -7,6 +8,7 @@ import { Send, MessageCircle, Users, X, Search } from "lucide-react"
 
 export default function Chat() {
   const { user } = useAuth()
+  const location = useLocation()
   const [receiverId, setReceiverId] = useState("")
   const [receiverName, setReceiverName] = useState("")
   const [message, setMessage] = useState("")
@@ -14,6 +16,14 @@ export default function Chat() {
   const [buddies, setBuddies] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Auto-load buddy from navigation state if passed from Buddies page
+  useEffect(() => {
+    if (location.state?.buddyId) {
+      setReceiverId(location.state.buddyId)
+      setReceiverName(location.state.buddyName || "")
+    }
+  }, [location.state])
 
   const fetchBuddies = async () => {
     try {

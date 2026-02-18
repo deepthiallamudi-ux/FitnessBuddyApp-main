@@ -167,7 +167,7 @@ PORT=3001
 NODE_ENV=development
 EOF
 
-npm start  # Runs on http://localhost:3001
+npm start  # Runs on http://localhost:5000
 ```
 
 ### 4. Database Setup
