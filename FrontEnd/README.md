@@ -25,13 +25,6 @@ A modern, feature-rich fitness social platform built with React 18, Vite, and Ta
 - **Collapsible Sidebar**: Easy navigation with active link highlighting
 - **Real-time Notifications**: Alerts for group joins, connections, and messages
 
-### Color Palette
-- **Primary (Dark Forest Green)**: `#0F2A1D`
-- **Secondary (Medium Green)**: `#6B9071`
-- **Dark Green (Deep Green)**: `#375534`
-- **Accent (Light Sage)**: `#AEC3B0`
-- **Light (Cream)**: `#E3EED4`
-
 ## 🛠️ Tech Stack
 
 - **Framework**: React 18.2.0
@@ -47,12 +40,6 @@ A modern, feature-rich fitness social platform built with React 18, Vite, and Ta
 - **Effects**: React Confetti for celebrations
 - **Routing**: React Router DOM v6
 
-## 📋 Prerequisites
-
-- Node.js 16.x or higher
-- npm or yarn
-- Supabase account and project
-- Environment variables configured
 
 ## 🚀 Installation
 

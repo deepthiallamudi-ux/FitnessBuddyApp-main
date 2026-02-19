@@ -99,13 +99,24 @@ export const ACHIEVEMENT_BADGES = {
  */
 export const checkWorkoutAchievements = async (userId) => {
   try {
+    console.log(`Checking workout achievements for user: ${userId}`)
+    
     // Check for First Workout badge
-    const { data: workouts } = await supabase
+    const { data: workouts, error: workoutError } = await supabase
       .from("workouts")
-      .select("id")
+      .select("*")
       .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+
+    if (workoutError) {
+      console.error("Error fetching workouts:", workoutError)
+      return false
+    }
+
+    console.log(`User has ${workouts?.length || 0} workouts`)
 
     if (workouts && workouts.length === 1) {
+      console.log("New user - awarding first workout badge")
       await awardAchievement(userId, "first_workout")
     }
 
@@ -133,7 +144,7 @@ export const checkWorkoutAchievements = async (userId) => {
       })
 
       const totalCalories = lastMonthWorkouts.reduce((sum, w) => {
-        return sum + (w.calories_burned || 0)
+        return sum + (w.calories || 0)
       }, 0)
 
       if (totalCalories >= 5000) {
@@ -306,11 +317,17 @@ export const awardAchievement = async (userId, badgeType) => {
       .single()
 
     if (existing) {
+      console.log(`Achievement already earned: ${badgeType}`)
       return // Badge already awarded
     }
 
     // Award the badge
     const badge = ACHIEVEMENT_BADGES[badgeType]
+    if (!badge) {
+      console.error(`Badge not found: ${badgeType}`)
+      return
+    }
+
     const { data, error } = await supabase
       .from("achievements")
       .insert([
@@ -323,24 +340,41 @@ export const awardAchievement = async (userId, badgeType) => {
       ])
       .select()
 
-    if (error) throw error
+    if (error) {
+      console.error("Error inserting achievement:", error)
+      throw error
+    }
+
+    console.log(`Achievement inserted for ${badgeType}:`, data)
 
     // Update user's total points in profile
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("points")
       .eq("id", userId)
       .single()
 
+    if (profileError) {
+      console.error("Error fetching profile:", profileError)
+      throw profileError
+    }
+
     const newPoints = (profile?.points || 0) + badge.points
 
-    await supabase
+    const { error: updateError } = await supabase
       .from("profiles")
       .update({
         points: newPoints,
         updated_at: new Date().toISOString()
       })
       .eq("id", userId)
+
+    if (updateError) {
+      console.error("Error updating profile points:", updateError)
+      throw updateError
+    }
+
+    console.log(`Profile updated: points updated to ${newPoints}`)
 
     // Emit event to notify UI of update
     window.dispatchEvent(new CustomEvent("achievementsUpdate", { detail: { userId, badgeType } }))

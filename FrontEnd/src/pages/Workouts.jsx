@@ -505,6 +505,114 @@ export default function Workouts() {
           </motion.button>
         </motion.div>
 
+        {/* Add Workout Form */}
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-8 mb-8 shadow-xl"
+          >
+            <h2 className="text-2xl font-bold mb-6">
+              {editingId ? "Edit Workout" : "Log New Workout"}
+            </h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Workout Type *</label>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
+                  >
+                    <option value="">Select workout type</option>
+                    <option value="Running">Running</option>
+                    <option value="Gym">Gym</option>
+                    <option value="Yoga">Yoga</option>
+                    <option value="Cycling">Cycling</option>
+                    <option value="Swimming">Swimming</option>
+                    <option value="HIIT">HIIT</option>
+                    <option value="CrossFit">CrossFit</option>
+                    <option value="Dancing">Dancing</option>
+                    <option value="Walking">Walking</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Duration (minutes) *</label>
+                  <input
+                    type="number"
+                    placeholder="e.g., 30"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    min="1"
+                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Distance (optional) <span className="text-red-500">*{["Running", "Walking", "Cycling"].includes(type) ? " Required" : ""}</span></label>
+                  <input
+                    type="number"
+                    placeholder={["Running", "Walking", "Cycling"].includes(type) ? "e.g., 5 (km/miles) - REQUIRED" : "e.g., 5 (km/miles)"}
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                    step="0.1"
+                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
+                  />
+                  {["Running", "Walking", "Cycling"].includes(type) && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">✓ Required for this workout type</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Estimated Calories</label>
+                  <input
+                    type="number"
+                    value={duration ? duration * caloriesPerMinute : 0}
+                    readOnly
+                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-2">Notes</label>
+                <textarea
+                  placeholder="How did you feel? Any achievements?"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows="3"
+                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-lg hover:shadow-lg transition"
+                >
+                  {editingId ? "Update Workout" : "Log Workout"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false)
+                    setEditingId(null)
+                    setType("")
+                    setDuration("")
+                    setDistance("")
+                    setNotes("")
+                  }}
+                  className="flex-1 py-3 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+
         {/* BMI & Weight Loss Tracking Section */}
         {profile && profile.weight && profile.height && (
           <motion.div
@@ -617,114 +725,6 @@ export default function Workouts() {
             </p>
           </motion.div>
         ) : null}
-
-        {/* Add Workout Form */}
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-gray-900 rounded-2xl p-8 mb-8 shadow-xl"
-          >
-            <h2 className="text-2xl font-bold mb-6">
-              {editingId ? "Edit Workout" : "Log New Workout"}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Workout Type *</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
-                  >
-                    <option value="">Select workout type</option>
-                    <option value="Running">Running</option>
-                    <option value="Gym">Gym</option>
-                    <option value="Yoga">Yoga</option>
-                    <option value="Cycling">Cycling</option>
-                    <option value="Swimming">Swimming</option>
-                    <option value="HIIT">HIIT</option>
-                    <option value="CrossFit">CrossFit</option>
-                    <option value="Dancing">Dancing</option>
-                    <option value="Walking">Walking</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Duration (minutes) *</label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 30"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    min="1"
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Distance (optional) <span className="text-red-500">*{["Running", "Walking", "Cycling"].includes(type) ? " Required" : ""}</span></label>
-                  <input
-                    type="number"
-                    placeholder={["Running", "Walking", "Cycling"].includes(type) ? "e.g., 5 (km/miles) - REQUIRED" : "e.g., 5 (km/miles)"}
-                    value={distance}
-                    onChange={(e) => setDistance(e.target.value)}
-                    step="0.1"
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
-                  />
-                  {["Running", "Walking", "Cycling"].includes(type) && (
-                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">✓ Required for this workout type</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Estimated Calories</label>
-                  <input
-                    type="number"
-                    value={duration ? duration * caloriesPerMinute : 0}
-                    readOnly
-                    className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">Notes</label>
-                <textarea
-                  placeholder="How did you feel? Any achievements?"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows="3"
-                  className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition"
-                />
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  type="submit"
-                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-lg hover:shadow-lg transition"
-                >
-                  {editingId ? "Update Workout" : "Log Workout"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false)
-                    setEditingId(null)
-                    setType("")
-                    setDuration("")
-                    setDistance("")
-                    setNotes("")
-                  }}
-                  className="flex-1 py-3 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600 transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        )}
 
         {/* Workouts History */}
         <div>
