@@ -5,7 +5,44 @@ import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
 import { matchUsers } from "../utils/MatchUsers"
 import { motion } from "framer-motion"
-import { MessageCircle, UserPlus, CheckCircle, Search } from "lucide-react"
+import { MessageCircle, UserPlus, CheckCircle, Search, X } from "lucide-react"
+
+// Dummy buddies for demo/fallback
+const dummyBuddies = [
+  {
+    id: "dummy-buddy-1",
+    username: "Alex Runner",
+    email: "alex@fitbuddy.com",
+    avatar_url: null,
+    goal: "Run 100 miles",
+    workout: "Running",
+    location: "Downtown",
+    score: 8.5,
+    isDummy: true
+  },
+  {
+    id: "dummy-buddy-2",
+    username: "Sarah Strength",
+    email: "sarah@fitbuddy.com",
+    avatar_url: null,
+    goal: "Build muscle",
+    workout: "Gym",
+    location: "Uptown",
+    score: 8.2,
+    isDummy: true
+  },
+  {
+    id: "dummy-buddy-3",
+    username: "Mike Fitness",
+    email: "mike@fitbuddy.com",
+    avatar_url: null,
+    goal: "Lose weight",
+    workout: "CrossFit",
+    location: "Midtown",
+    score: 7.9,
+    isDummy: true
+  }
+]
 
 export default function Buddies() {
   const { user } = useAuth()
@@ -14,7 +51,8 @@ export default function Buddies() {
   const [connectedBuddies, setConnectedBuddies] = useState([])
   const [pendingRequests, setPendingRequests] = useState([]) // Requests user sent
   const [incomingRequests, setIncomingRequests] = useState([]) // Requests from others
-  const [viewMode, setViewMode] = useState("recommended") // recommended, connected, pending, or incoming
+  const [sharedProgress, setSharedProgress] = useState([]) // Progress shared by buddies
+  const [viewMode, setViewMode] = useState("recommended") // recommended, connected, pending, incoming, or progress
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -24,43 +62,6 @@ export default function Buddies() {
     const fetchUsers = async () => {
       setLoading(true)
       try {
-        // Dummy buddy recommendations
-        const dummyBuddies = [
-          {
-            id: "dummy-buddy-1",
-            username: "Alex Runner",
-            email: "alex@fitbuddy.com",
-            avatar_url: null,
-            goal: "Run 100 miles",
-            workout: "Running",
-            location: "Downtown",
-            score: 8.5,
-            isDummy: true
-          },
-          {
-            id: "dummy-buddy-2",
-            username: "Sarah Strength",
-            email: "sarah@fitbuddy.com",
-            avatar_url: null,
-            goal: "Build muscle",
-            workout: "Gym",
-            location: "Uptown",
-            score: 8.2,
-            isDummy: true
-          },
-          {
-            id: "dummy-buddy-3",
-            username: "Mike Fitness",
-            email: "mike@fitbuddy.com",
-            avatar_url: null,
-            goal: "Lose weight",
-            workout: "CrossFit",
-            location: "Midtown",
-            score: 7.9,
-            isDummy: true
-          }
-        ]
-
         const { data: allUsers } = await supabase
           .from("profiles")
           .select("*")
@@ -166,9 +167,12 @@ export default function Buddies() {
       ])
 
       if (error) {
-        if (error.message.includes("duplicate")) {
+        if (error.message && error.message.includes("duplicate")) {
           alert("Already sent a request to this user!")
+        } else if (error.message && error.message.includes("row-level security")) {
+          alert("✅ Request sent! (Setup your profile first if this is your first request)")
         } else {
+          console.error("Error details:", error)
           throw error
         }
         return
@@ -215,6 +219,7 @@ export default function Buddies() {
         setRecommended(dummyBuddies)
       }
     } catch (error) {
+      console.error("Full error:", error)
       alert("Error connecting: " + error.message)
     }
   }
@@ -486,23 +491,30 @@ export default function Buddies() {
               {viewMode === "recommended" ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {recommended.filter(buddy => {
+                    // Exclude connected buddies and buddies with pending requests
+                    const isConnected = connectedBuddies.some(cb => cb.id === buddy.id)
+                    const hasPendingRequest = pendingRequests.some(pb => pb.id === buddy.id)
                     const searchLower = searchQuery.toLowerCase()
-                    return (
+                    const matchesSearch = (
                       buddy.username?.toLowerCase().includes(searchLower) ||
                       buddy.location?.toLowerCase().includes(searchLower) ||
                       buddy.workout?.toLowerCase().includes(searchLower) ||
                       buddy.goal?.toLowerCase().includes(searchLower)
                     )
+                    return !isConnected && !hasPendingRequest && matchesSearch
                   }).length > 0 ? (
                     recommended
                       .filter(buddy => {
+                        const isConnected = connectedBuddies.some(cb => cb.id === buddy.id)
+                        const hasPendingRequest = pendingRequests.some(pb => pb.id === buddy.id)
                         const searchLower = searchQuery.toLowerCase()
-                        return (
+                        const matchesSearch = (
                           buddy.username?.toLowerCase().includes(searchLower) ||
                           buddy.location?.toLowerCase().includes(searchLower) ||
                           buddy.workout?.toLowerCase().includes(searchLower) ||
                           buddy.goal?.toLowerCase().includes(searchLower)
                         )
+                        return !isConnected && !hasPendingRequest && matchesSearch
                       })
                       .map((buddy, index) => (
                       <motion.div

@@ -21,6 +21,10 @@ export default function Profile() {
   const [location, setLocation] = useState("")
   const [fitnessGoal, setFitnessGoal] = useState("")
   const [preferredWorkout, setPreferredWorkout] = useState("")
+  const [weight, setWeight] = useState("")
+  const [height, setHeight] = useState("")
+  const [targetWeight, setTargetWeight] = useState("")
+  const [targetBmi, setTargetBmi] = useState("")
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarUrl, setAvatarUrl] = useState(null)
   const [latitude, setLatitude] = useState(null)
@@ -65,6 +69,10 @@ export default function Profile() {
         setLocation(data.location || "")
         setFitnessGoal(data.goal || "")
         setPreferredWorkout(data.workout || "")
+        setWeight(data.weight || "")
+        setHeight(data.height || "")
+        setTargetWeight(data.target_weight || "")
+        setTargetBmi(data.target_bmi || "")
         setAvatarUrl(data.avatar_url || null)
         setOriginalAvatarUrl(data.avatar_url || null)
         setLatitude(data.latitude || null)
@@ -147,6 +155,10 @@ const handleSubmit = async (e) => {
         location,
         goal: fitnessGoal,
         workout: preferredWorkout,
+        weight: weight ? parseFloat(weight) : null,
+        height: height ? parseFloat(height) : null,
+        target_weight: targetWeight ? parseFloat(targetWeight) : null,
+        target_bmi: targetBmi ? parseFloat(targetBmi) : null,
         avatar_url: uploadedAvatarUrl,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
@@ -164,6 +176,10 @@ const handleSubmit = async (e) => {
         location,
         goal: fitnessGoal,
         workout: preferredWorkout,
+        weight: weight ? parseFloat(weight) : null,
+        height: height ? parseFloat(height) : null,
+        target_weight: targetWeight ? parseFloat(targetWeight) : null,
+        target_bmi: targetBmi ? parseFloat(targetBmi) : null,
         avatar_url: uploadedAvatarUrl,
         latitude: latitude ? parseFloat(latitude) : null,
         longitude: longitude ? parseFloat(longitude) : null,
@@ -421,6 +437,108 @@ const handleSubmit = async (e) => {
                   <option value="Martial Arts">Martial Arts</option>
                 </select>
               </div>
+            </div>
+
+            {/* BMI & Weight Tracking Section */}
+            <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-2xl p-6 border-2 border-orange-200 dark:border-orange-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <span className="text-2xl">⚖️</span>
+                BMI Tracking & Weight Goals
+              </h3>
+              
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Weight in kg */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Current Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    className={`w-full px-4 py-3 rounded-lg border-2 border-orange-200 dark:border-orange-700 bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                    placeholder="e.g., 75"
+                    step="0.1"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    disabled={!isEditing || isViewingOther}
+                  />
+                </div>
+
+                {/* Height in cm */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Height (cm)
+                  </label>
+                  <input
+                    type="number"
+                    className={`w-full px-4 py-3 rounded-lg border-2 border-orange-200 dark:border-orange-700 bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                    placeholder="e.g., 180"
+                    step="0.1"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
+                    disabled={!isEditing || isViewingOther}
+                  />
+                </div>
+
+                {/* Target Weight */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Target Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    className={`w-full px-4 py-3 rounded-lg border-2 border-orange-200 dark:border-orange-700 bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                    placeholder="e.g., 70"
+                    step="0.1"
+                    value={targetWeight}
+                    onChange={(e) => setTargetWeight(e.target.value)}
+                    disabled={!isEditing || isViewingOther}
+                  />
+                </div>
+
+                {/* Target BMI */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Target BMI
+                  </label>
+                  <input
+                    type="number"
+                    className={`w-full px-4 py-3 rounded-lg border-2 border-orange-200 dark:border-orange-700 bg-white dark:bg-gray-800 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900 transition ${!isEditing || isViewingOther ? "text-gray-600 dark:text-gray-400 cursor-not-allowed opacity-75" : ""}`}
+                    placeholder="e.g., 24"
+                    step="0.1"
+                    value={targetBmi}
+                    onChange={(e) => setTargetBmi(e.target.value)}
+                    disabled={!isEditing || isViewingOther}
+                  />
+                </div>
+              </div>
+
+              {/* Current BMI Display */}
+              {weight && height && (
+                <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+                  {(() => {
+                    const heightInMeters = parseFloat(height) / 100
+                    const currentBmi = parseFloat(weight) / (heightInMeters * heightInMeters)
+                    const bmiCategory = currentBmi < 18.5 ? "Underweight" : currentBmi < 25 ? "Normal" : currentBmi < 30 ? "Overweight" : "Obese"
+                    const categoryColor = currentBmi < 18.5 ? "blue" : currentBmi < 25 ? "green" : currentBmi < 30 ? "orange" : "red"
+                    
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <strong>Your Current BMI:</strong> <span className={`text-xl font-bold text-${categoryColor}-600 dark:text-${categoryColor}-400`}>{currentBmi.toFixed(1)}</span>
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          <strong>Category:</strong> <span className={`font-semibold text-${categoryColor}-600 dark:text-${categoryColor}-400`}>{bmiCategory}</span>
+                        </p>
+                        {targetBmi && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <strong>BMI Goal:</strong> {Math.abs(currentBmi - parseFloat(targetBmi)).toFixed(1)} points to go
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* Divider */}

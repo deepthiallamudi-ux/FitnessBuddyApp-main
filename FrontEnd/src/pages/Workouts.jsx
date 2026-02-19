@@ -19,6 +19,7 @@ export default function Workouts() {
   const [showForm, setShowForm] = useState(false)
   const [celebratingWeek, setCelebratingWeek] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [profile, setProfile] = useState(null)
 
   const caloriesPerMinute = 5
 
@@ -34,6 +35,12 @@ export default function Workouts() {
       .select("*")
       .eq("user_id", user.id)
 
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+
     if (data) setWorkouts(data)
     if (goalsData) {
       setGoals(goalsData)
@@ -47,6 +54,7 @@ export default function Workouts() {
       })
       setWeeklyGoal(totalWeeklyTarget > 0 ? totalWeeklyTarget : 2.5 * 60) // Default 2.5 hours = 150 minutes
     }
+    if (profileData) setProfile(profileData)
   }
 
   useEffect(() => {
@@ -281,15 +289,24 @@ export default function Workouts() {
       return diff <= 7
     })
 
+    // Count unique days with activity instead of total hours
+    const uniqueDays = new Set()
+    last7Days.forEach(w => {
+      const date = new Date(w.created_at).toDateString()
+      uniqueDays.add(date)
+    })
+
     const totalDuration = last7Days.reduce((acc, w) => acc + (w.duration || 0), 0)
     const totalCalories = last7Days.reduce((acc, w) => acc + (w.calories || 0), 0)
     const totalWorkouts = last7Days.length
+    const activeDays = uniqueDays.size
 
-    return { totalDuration, totalCalories, totalWorkouts }
+    return { totalDuration, totalCalories, totalWorkouts, activeDays }
   }
 
   const summary = weeklySummary()
-  const progressPercent = weeklyGoal > 0 ? Math.min((summary.totalDuration / weeklyGoal) * 100, 100) : 0
+  // Progress based on daily activity: 7 active days = 100%
+  const progressPercent = Math.min((summary.activeDays / 7) * 100, 100)
 
   const shareProgress = (platform) => {
     const text = `🔥 This week on Fitness Buddy:\n• ${summary.totalWorkouts} Workouts\n• ${summary.totalDuration} minutes\n• ${summary.totalCalories} calories burned\n\nJoin me in my fitness journey! 💪 #FitnessBuddy #FitnessGoals`
@@ -305,6 +322,102 @@ export default function Workouts() {
       alert("📷 Share this manually on Instagram:\n\n" + text)
     } else if (urls[platform]) {
       window.open(urls[platform], "_blank", "width=600,height=400")
+    }
+  }
+
+  const handleShareWithBuddies = async () => {
+    try {
+      // Fetch connected buddies
+      const { data: connectedBuddies } = await supabase
+        .from("buddies")
+        .select("buddy_id")
+        .eq("user_id", user.id)
+        .eq("status", "connected")
+
+      if (!connectedBuddies || connectedBuddies.length === 0) {
+        alert("🤝 You don't have any connected buddies yet!\n\nGo to Buddies section to connect with fitness friends.")
+        return
+      }
+
+      // Prepare share data
+      const shareStats = {
+        workouts: summary.totalWorkouts,
+        duration: summary.totalDuration,
+        calories: summary.totalCalories,
+        activeDays: summary.activeDays,
+        progressPercent: Math.round(progressPercent)
+      }
+
+      // Share with all connected buddies
+      const shares = connectedBuddies.map(buddy => ({
+        sharer_id: user.id,
+        receiver_id: buddy.buddy_id,
+        share_type: 'weekly_summary',
+        title: `${summary.totalWorkouts} workouts this week!`,
+        message: `Just completed ${summary.totalWorkouts} workouts with ${summary.totalCalories} calories burned! 🔥`,
+        stats: shareStats
+      }))
+
+      const { error } = await supabase.from("progress_shares").insert(shares)
+
+      if (error) {
+        console.error("Share error:", error)
+        alert("Error sharing progress with buddies")
+        return
+      }
+
+      alert(`✅ Progress shared with ${connectedBuddies.length} buddy(ies)! 🎉`)
+    } catch (error) {
+      console.error("Error sharing:", error)
+      alert("Error: " + error.message)
+    }
+  }
+
+  const handleShareWorkout = async (workout) => {
+    try {
+      // Fetch connected buddies
+      const { data: connectedBuddies } = await supabase
+        .from("buddies")
+        .select("buddy_id")
+        .eq("user_id", user.id)
+        .eq("status", "connected")
+
+      if (!connectedBuddies || connectedBuddies.length === 0) {
+        alert("🤝 You don't have any connected buddies yet!\n\nGo to Buddies section to connect with fitness friends.")
+        return
+      }
+
+      // Prepare share data
+      const shareStats = {
+        type: workout.type,
+        duration: workout.duration,
+        calories: workout.calories,
+        distance: workout.distance
+      }
+
+      // Share with all connected buddies
+      const shares = connectedBuddies.map(buddy => ({
+        sharer_id: user.id,
+        receiver_id: buddy.buddy_id,
+        share_type: 'workout',
+        workout_id: workout.id,
+        title: `Just completed a ${workout.type} workout!`,
+        message: `${workout.duration} min ${workout.type} session 💪 ${workout.calories} calories burned`,
+        stats: shareStats
+      }))
+
+      const { error } = await supabase.from("progress_shares").insert(shares)
+
+      if (error) {
+        console.error("Share error:", error)
+        alert("Error sharing workout with buddies")
+        return
+      }
+
+      alert(`✅ Workout shared with ${connectedBuddies.length} buddy(ies)! 🎉`)
+    } catch (error) {
+      console.error("Error sharing:", error)
+      alert("Error: " + error.message)
     }
   }
 
@@ -392,9 +505,9 @@ export default function Workouts() {
           {/* Progress Bar */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-3">
-              <span className="font-semibold text-gray-700 dark:text-gray-300">Weekly Goal Progress</span>
+              <span className="font-semibold text-gray-700 dark:text-gray-300">Weekly Activity Progress</span>
               <span className="text-lg font-bold text-primary dark:text-accent">
-                {(summary.totalDuration / 60).toFixed(1)} / {weeklyGoal} hours ({Math.round(progressPercent)}%)
+                {summary.activeDays} / 7 Days Active ({Math.round(progressPercent)}%)
               </span>
             </div>
             <ProgressBar percentage={progressPercent} />
@@ -413,15 +526,15 @@ export default function Workouts() {
             <div className="bg-gradient-to-br from-[#AEC3B0] to-[#E3EED4] dark:from-[#6B9071] dark:to-[#375534] p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-5 h-5 text-secondary dark:text-darkGreen" />
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Duration</span>
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Active Days</span>
               </div>
-              <p className="text-3xl font-bold text-secondary dark:text-darkGreen">{summary.totalDuration}m</p>
+              <p className="text-3xl font-bold text-secondary dark:text-darkGreen">{summary.activeDays}/7</p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#AEC3B0] to-[#E3EED4] dark:from-[#6B9071] dark:to-[#375534] p-4 rounded-lg\">
-              <div className="flex items-center gap-2 mb-2\">
-                <Flame className="w-5 h-5 text-accent dark:text-[#AEC3B0]\" />
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300\">Calories</span>
+            <div className="bg-gradient-to-br from-[#AEC3B0] to-[#E3EED4] dark:from-[#6B9071] dark:to-[#375534] p-4 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className="w-5 h-5 text-accent dark:text-[#AEC3B0]" />
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Calories</span>
               </div>
               <p className="text-3xl font-bold text-accent dark:text-[#AEC3B0]">{summary.totalCalories}</p>
             </div>
@@ -446,7 +559,131 @@ export default function Workouts() {
               🏆 Amazing! You've reached your weekly goal! Keep it up!
             </motion.div>
           )}
+
+          {/* Share with Buddies Button */}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleShareWithBuddies}
+            className="mt-6 w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
+          >
+            <Share2 className="w-5 h-5" />
+            Share This Week's Progress with Buddies 🤝
+          </motion.button>
         </motion.div>
+
+        {/* BMI & Weight Loss Tracking Section */}
+        {profile && profile.weight && profile.height && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white dark:bg-gray-900 rounded-2xl p-8 mb-8 shadow-xl"
+          >
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-red-500 mb-6">
+              ⚖️ BMI & Weight Loss Progress
+            </h2>
+            
+            {(() => {
+              const heightInMeters = profile.height / 100
+              const currentBmi = profile.weight / (heightInMeters * heightInMeters)
+              const weightDifference = profile.weight - (profile.target_weight || profile.weight)
+              const bmiDifference = currentBmi - (profile.target_bmi || currentBmi)
+              
+              // Calculate weight loss impact from workouts
+              // Average: 500 calories = 0.058 kg weight loss (1 kg = ~7700 calories)
+              const totalCaloriesBurned = summary.totalCalories
+              const weightLossFromWorkouts = totalCaloriesBurned / 7700 * 0.9 // Conservative estimate
+              
+              // Estimate days to reach target
+              let daysToTarget = "N/A"
+              if (profile.target_weight && weightDifference > 0) {
+                const avgDailyCalorieDeficit = summary.totalCalories > 0 ? (summary.totalCalories / summary.totalWorkouts) : 300
+                const daysPerKg = 7700 / avgDailyCalorieDeficit
+                daysToTarget = Math.ceil(weightDifference * daysPerKg) + " days"
+              }
+              
+              const bmiCategory = currentBmi < 18.5 ? "Underweight" : currentBmi < 25 ? "Normal" : currentBmi < 30 ? "Overweight" : "Obese"
+              
+              // Color mapping for BMI categories
+              const colorMap = {
+                Underweight: { bg: "from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10", border: "border-blue-200 dark:border-blue-700", text: "text-blue-600 dark:text-blue-400" },
+                Normal: { bg: "from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-900/10", border: "border-emerald-200 dark:border-emerald-700", text: "text-emerald-600 dark:text-emerald-400" },
+                Overweight: { bg: "from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-900/10", border: "border-amber-200 dark:border-amber-700", text: "text-amber-600 dark:text-amber-400" },
+                Obese: { bg: "from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-900/10", border: "border-red-200 dark:border-red-700", text: "text-red-600 dark:text-red-400" }
+              }
+              const colors = colorMap[bmiCategory]
+              
+              return (
+                <div className="space-y-6">
+                  {/* Current BMI Card */}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className={`bg-gradient-to-br ${colors.bg} rounded-lg p-6 border-2 ${colors.border}`}>
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Current BMI</p>
+                      <p className={`text-4xl font-bold ${colors.text} mb-2`}>{currentBmi.toFixed(1)}</p>
+                      <p className={`text-sm font-semibold ${colors.text}`}>{bmiCategory}</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/10 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-700">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Weight Loss Impact</p>
+                      <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">{weightLossFromWorkouts.toFixed(2)} kg</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">From {totalCaloriesBurned} calories burned</p>
+                    </div>
+                  </div>
+                  
+                  {/* Weight Progress */}
+                  {profile.target_weight && (
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 rounded-lg p-6 border-2 border-green-200 dark:border-green-700">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="font-semibold text-gray-700 dark:text-gray-300">Target Weight Progress</p>
+                        <span className="text-lg font-bold text-green-600 dark:text-green-400">
+                          {profile.weight.toFixed(1)} / {profile.target_weight.toFixed(1)} kg
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-300 dark:bg-gray-700 h-4 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{
+                            width: `${Math.max(0, Math.min(100, ((profile.weight - profile.target_weight) / (profile.weight - profile.target_weight) * 100)))}%`
+                          }}
+                          transition={{ duration: 0.6 }}
+                          className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
+                        {weightDifference > 0 ? `${weightDifference.toFixed(1)} kg to lose` : "Target reached! 🎉"}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Estimation */}
+                  {profile.target_weight && weightDifference > 0 && (
+                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-lg p-6 border-2 border-blue-200 dark:border-blue-700">
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Projected Time to Target BMI</p>
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                        {daysToTarget}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Based on your recent workout activity and calorie burn rate
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </motion.div>
+        )}
+
+        {!profile?.weight || !profile?.height ? (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-6 mb-8 border-2 border-blue-200 dark:border-blue-700"
+          >
+            <p className="text-blue-700 dark:text-blue-300 text-center">
+              <strong>💡 Tip:</strong> Go to your <strong>Profile</strong> and add your weight & height to see BMI tracking and weight loss progress!
+            </p>
+          </motion.div>
+        ) : null}
 
         {/* Add Workout Form */}
         {showForm && (
@@ -583,12 +820,21 @@ export default function Workouts() {
                       <button
                         onClick={() => handleEditWorkout(workout)}
                         className="p-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 transition"
+                        title="Edit workout"
                       >
                         <Edit2 className="w-5 h-5" />
                       </button>
                       <button
+                        onClick={() => handleShareWorkout(workout)}
+                        className="p-2 bg-purple-500 dark:bg-purple-600 text-white rounded-lg hover:bg-purple-600 dark:hover:bg-purple-700 transition"
+                        title="Share with buddies"
+                      >
+                        <Share2 className="w-5 h-5" />
+                      </button>
+                      <button
                         onClick={() => handleDeleteWorkout(workout.id)}
                         className="p-2 bg-[#AEC3B0] dark:bg-[#6B9071] text-[#0F2A1D] dark:text-[#E3EED4] rounded-lg hover:bg-[#6B9071] dark:hover:bg-[#375534] transition"
+                        title="Delete workout"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>

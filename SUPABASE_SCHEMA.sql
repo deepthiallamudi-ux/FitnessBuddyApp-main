@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   latitude FLOAT,
   longitude FLOAT,
   bio TEXT,
+  weight FLOAT,
+  height FLOAT,
+  target_weight FLOAT,
+  target_bmi FLOAT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -129,6 +133,21 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   receiver_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   message TEXT NOT NULL,
   read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- PROGRESS_SHARES TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS progress_shares (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sharer_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  receiver_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  share_type TEXT NOT NULL DEFAULT 'weekly_summary',
+  workout_id UUID REFERENCES workouts(id) ON DELETE CASCADE,
+  title TEXT,
+  message TEXT,
+  stats JSONB,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -260,6 +279,24 @@ CREATE POLICY "Users can update buddy requests"
 CREATE POLICY "Authenticated users can view saved gyms"
   ON saved_gyms FOR SELECT
   USING (auth.role() = 'authenticated');
+
+-- ============================================
+-- PROGRESS SHARES - Users can share fitness achievements with buddies
+-- ============================================
+CREATE POLICY "Users can share their own progress"
+  ON progress_shares FOR INSERT
+  WITH CHECK (sharer_id = auth.uid());
+
+CREATE POLICY "Users can view shared progress with them"
+  ON progress_shares FOR SELECT
+  USING (receiver_id = auth.uid() OR sharer_id = auth.uid());
+
+-- ============================================
+-- LEADERBOARD ACCESS - Allow public read for workouts
+-- ============================================
+CREATE POLICY "Anyone can view all workouts for leaderboard"
+  ON workouts FOR SELECT
+  USING (true);
 
 -- Saved Gyms: Users can create/update their own saved gyms
 CREATE POLICY "Users can manage their own saved gyms"

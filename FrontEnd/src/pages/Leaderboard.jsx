@@ -44,14 +44,13 @@ export default function Leaderboard() {
   const fetchLeaderboard = async () => {
     setLoading(true)
     try {
-      // Fetch all workouts with proper error handling
+      // Fetch all workouts - now with public read access
       const { data: workouts, error: workoutError } = await supabase
         .from("workouts")
         .select("user_id, duration, calories")
 
       if (workoutError) {
-        console.error("Workout fetch error:", workoutError)
-        throw workoutError
+        console.warn("Workout fetch warning:", workoutError?.message)
       }
 
       // Fetch all profiles with proper error handling
@@ -88,32 +87,45 @@ export default function Leaderboard() {
         }
       })
 
+      // If we have workouts, calculate stats
       if (workouts && workouts.length > 0) {
+        console.log(`Processing ${workouts.length} workouts for leaderboard`)
         workouts.forEach(workout => {
           if (userStats[workout.user_id]) {
+            const duration = workout.duration || 0
+            const calories = workout.calories || 0
+            
             userStats[workout.user_id].workouts += 1
-            userStats[workout.user_id].minutes += workout.duration || 0
-            userStats[workout.user_id].calories += workout.calories || 0
-            // Points calculation: 10 per workout + 1 per minute + 0.1 per calorie
-            userStats[workout.user_id].points = 
-              (userStats[workout.user_id].workouts * 10) +
-              (userStats[workout.user_id].minutes * 1) +
-              (userStats[workout.user_id].calories * 0.1)
+            userStats[workout.user_id].minutes += duration
+            userStats[workout.user_id].calories += calories
           }
         })
+      } else {
+        console.log("No workouts found in database")
       }
+
+      // Calculate points for all users
+      Object.keys(userStats).forEach(userId => {
+        const stats = userStats[userId]
+        // Points: 10 per workout + 1 per minute + 0.1 per calorie
+        stats.points = (stats.workouts * 10) + (stats.minutes * 1) + (stats.calories * 0.1)
+      })
 
       // Sort by points descending
       const sortedLeaderboard = Object.values(userStats)
+        .filter(user => user.points > 0) // Show only users with activity
         .sort((a, b) => b.points - a.points)
-        .map((user, index) => ({ ...user, rank: index + 1 }))
+        .map((userStat, index) => ({ ...userStat, rank: index + 1 }))
 
+      console.log(`Leaderboard created with ${sortedLeaderboard.length} active users`)
       setLeaderboard(sortedLeaderboard)
 
       // Calculate user's rank
       const userEntry = sortedLeaderboard.find(u => u.id === user?.id)
       if (userEntry) {
         setUserRank(userEntry.rank)
+      } else {
+        setUserRank(null)
       }
     } catch (error) {
       console.error("Leaderboard fetch error:", error)

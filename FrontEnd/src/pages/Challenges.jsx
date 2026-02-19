@@ -12,6 +12,9 @@ export default function Challenges() {
   const [userChallenges, setUserChallenges] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [celebratingChallenge, setCelebratingChallenge] = useState(null)
+  const [selectedChallenge, setSelectedChallenge] = useState(null)
+  const [challengeDetails, setChallengeDetails] = useState(null)
+  const [participants, setParticipants] = useState([])
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -45,6 +48,54 @@ export default function Challenges() {
 
     if (data) {
       setUserChallenges(data.map(c => c.challenge_id))
+    }
+  }
+
+  const fetchChallengeDetails = async (challengeId) => {
+    try {
+      // Fetch challenge details
+      const { data: challenge } = await supabase
+        .from("challenges")
+        .select("*")
+        .eq("id", challengeId)
+        .single()
+
+      if (challenge) {
+        setChallengeDetails(challenge)
+        setSelectedChallenge(challengeId)
+
+        // Fetch all members and their progress
+        const { data: members } = await supabase
+          .from("challenge_members")
+          .select("user_id, progress, joined_at")
+          .eq("challenge_id", challengeId)
+
+        if (members && members.length > 0) {
+          // Fetch member profiles
+          const memberIds = members.map(m => m.user_id)
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url")
+            .in("id", memberIds)
+
+          // Combine member data with profiles
+          const enrichedMembers = members.map(member => {
+            const profile = profiles?.find(p => p.id === member.user_id)
+            return {
+              ...member,
+              username: profile?.username || "Unknown",
+              avatar_url: profile?.avatar_url,
+              progressPercent: Math.min((member.progress / challenge.target) * 100, 100)
+            }
+          })
+
+          setParticipants(enrichedMembers)
+        } else {
+          setParticipants([])
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching challenge details:", error)
     }
   }
 
@@ -302,9 +353,10 @@ export default function Challenges() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`relative bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition ${
+                className={`relative bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-lg hover:shadow-2xl transition cursor-pointer ${
                   isJoined ? "ring-2 ring-orange-500" : ""
                 }`}
+                onClick={() => fetchChallengeDetails(challenge.id)}
               >
                 {isJoined && (
                   <div className="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold">
@@ -397,6 +449,135 @@ export default function Challenges() {
             <p className="text-gray-600 dark:text-gray-400 text-lg">
               No challenges yet. Create one to get started!
             </p>
+          </motion.div>
+        )}
+
+        {/* Challenge Details Modal */}
+        {selectedChallenge && challengeDetails && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => {
+              setSelectedChallenge(null)
+              setChallengeDetails(null)
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-auto shadow-2xl p-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setSelectedChallenge(null)
+                  setChallengeDetails(null)
+                }}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                ✕
+              </button>
+
+              {/* Challenge Header */}
+              <div className="text-center mb-8">
+                <div className="text-6xl mb-4">{badges[challengeDetails.reward_badge]?.icon || "🏆"}</div>
+                <h2 className="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+                  {challengeDetails.title}
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  {challengeDetails.description}
+                </p>
+                <div className="flex gap-4 justify-center flex-wrap">
+                  <div className="bg-orange-100 dark:bg-orange-900 px-4 py-2 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Target</p>
+                    <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                      {challengeDetails.target} {challengeDetails.unit}
+                    </p>
+                  </div>
+                  <div className="bg-blue-100 dark:bg-blue-900 px-4 py-2 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Duration</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400 capitalize">
+                      {challengeDetails.duration}
+                    </p>
+                  </div>
+                  <div className="bg-green-100 dark:bg-green-900 px-4 py-2 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Participants</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                      {participants.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Participants Section */}
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                  <Users className="w-6 h-6" /> Participants ({participants.length})
+                </h3>
+                {participants.length > 0 ? (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {participants.map((participant, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold">
+                            {participant.username?.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                              {participant.username}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {participant.progress} / {challengeDetails.target} {challengeDetails.unit}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-24">
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div
+                              className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all"
+                              style={{ width: `${participant.progressPercent}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 text-right mt-1">
+                            {Math.round(participant.progressPercent)}%
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-600 dark:text-gray-400 text-center py-8">
+                    No participants yet. Be the first to join!
+                  </p>
+                )}
+              </div>
+
+              {/* Join Button */}
+              {!userChallenges.includes(selectedChallenge) && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    handleJoinChallenge(selectedChallenge)
+                    setSelectedChallenge(null)
+                    setChallengeDetails(null)
+                  }}
+                  className="w-full bg-gradient-to-r from-primary to-secondary text-white font-bold py-3 rounded-lg hover:shadow-lg transition"
+                >
+                  <Zap className="w-4 h-4 inline mr-2" />
+                  Join This Challenge
+                </motion.button>
+              )}
+            </motion.div>
           </motion.div>
         )}
       </motion.div>
