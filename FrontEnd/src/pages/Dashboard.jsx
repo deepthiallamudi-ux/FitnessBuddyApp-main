@@ -7,18 +7,21 @@ import Confetti from "react-confetti"
 import CircularProgress from "../components/CircularProgress"
 import PageTransition from "../components/PageTransition"
 import useCounter from "../hooks/useCounter"
-import { Zap, Trophy, Users, Target, TrendingUp, Calendar, Flame, Clock, Dumbbell, MapPin, Gamepad2 } from "lucide-react"
+import { Zap, Trophy, Users, Target, TrendingUp, Calendar, Flame, Clock, Dumbbell, MapPin, Gamepad2, Bell } from "lucide-react"
 
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [totalMinutes, setTotalMinutes] = useState(0)
-  const [weeklyGoal, setWeeklyGoal] = useState(0)
   const [goals, setGoals] = useState([])
   const [weeklyStats, setWeeklyStats] = useState({ workouts: 0, calories: 0, minutes: 0 })
+  const [dailyStats, setDailyStats] = useState({ workouts: 0, calories: 0, minutes: 0 })
   const [recentWorkouts, setRecentWorkouts] = useState([])
   const [streak, setStreak] = useState(0)
+  const [reminders, setReminders] = useState([])
+  const [reminderTime, setReminderTime] = useState("08:00")
+  const [reminderFrequency, setReminderFrequency] = useState("daily")
 
   useEffect(() => {
     if (!user) return
@@ -43,16 +46,6 @@ export default function Dashboard() {
 
       setProfile(profileData)
       setGoals(goalsData || [])
-      
-      // Get weekly goals (goals with category other than specific fitness goals)
-      const weeklyGoalsData = (goalsData || []).filter(g => !g.deadline || new Date(g.deadline) > new Date())
-      let totalWeeklyTarget = 0
-      weeklyGoalsData.forEach(g => {
-        if (g.unit === "minutes" || g.unit === "time" || g.category === "time") {
-          totalWeeklyTarget += g.target || 0
-        }
-      })
-      setWeeklyGoal(totalWeeklyTarget > 0 ? totalWeeklyTarget : 2.5 * 60) // Default 2.5 hours = 150 minutes
 
       if (workouts) {
         // Total stats
@@ -77,11 +70,27 @@ export default function Dashboard() {
           calories: weeklyCalories
         })
 
+        // Daily stats (today only)
+        const today = new Date()
+        const todaysWorkouts = workouts.filter(w => {
+          const workoutDate = new Date(w.created_at)
+          return workoutDate.toDateString() === today.toDateString()
+        })
+
+        const dailyMinutes = todaysWorkouts.reduce((acc, w) => acc + (w.duration || 0), 0)
+        const dailyCalories = todaysWorkouts.reduce((acc, w) => acc + (w.calories || 0), 0)
+
+        setDailyStats({
+          workouts: todaysWorkouts.length,
+          minutes: dailyMinutes,
+          calories: dailyCalories
+        })
+
         // Calculate streak
         let currentStreak = 0
-        const today = new Date()
+        const currentDate = new Date()
         for (let i = 0; i < 365; i++) {
-          const date = new Date(today)
+          const date = new Date(currentDate)
           date.setDate(date.getDate() - i)
           const hasWorkout = workouts.some(w => {
             const wDate = new Date(w.created_at)
@@ -98,16 +107,41 @@ export default function Dashboard() {
     }
 
     fetchData()
+
+    // Load reminders from localStorage
+    const savedReminders = localStorage.getItem(`reminders_${user.id}`)
+    if (savedReminders) {
+      setReminders(JSON.parse(savedReminders))
+    }
   }, [user])
 
-  const progress =
-    weeklyGoal > 0
-      ? Math.min((weeklyStats.minutes / weeklyGoal) * 100, 100)
-      : 0
+  const handleAddReminder = () => {
+    if (reminderTime) {
+      const newReminder = {
+        id: Date.now(),
+        time: reminderTime,
+        frequency: reminderFrequency,
+        createdAt: new Date()
+      }
+      const updatedReminders = [...reminders, newReminder]
+      setReminders(updatedReminders)
+      localStorage.setItem(`reminders_${user.id}`, JSON.stringify(updatedReminders))
+      alert(`✅ Reminder set for ${reminderTime}`)
+      setReminderTime("08:00")
+    }
+  }
+
+  const handleDeleteReminder = (id) => {
+    const updatedReminders = reminders.filter(r => r.id !== id)
+    setReminders(updatedReminders)
+    localStorage.setItem(`reminders_${user.id}`, JSON.stringify(updatedReminders))
+  }
 
   const animatedMinutes = useCounter(totalMinutes)
   const animatedWeekly = useCounter(weeklyStats.minutes)
   const animatedCalories = useCounter(weeklyStats.calories)
+  const animatedDailyCalories = useCounter(dailyStats.calories)
+  const animatedDailyMinutes = useCounter(dailyStats.minutes)
 
   const motivationalMessages = [
     "You're crushing it! Keep up the momentum! 💪",
@@ -163,7 +197,7 @@ export default function Dashboard() {
             </linearGradient>
           </defs>
         </svg>
-        {progress >= 100 && <Confetti recycle={false} numberOfPieces={200} />}
+        {streak >= 7 && <Confetti recycle={false} numberOfPieces={100} />}
 
       <motion.div
         initial={{ opacity: 0 }}
@@ -265,7 +299,7 @@ export default function Dashboard() {
 
         {/* Main Stats Grid */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {/* Weekly Progress Card */}
+          {/* Daily Activity Card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -273,27 +307,35 @@ export default function Dashboard() {
             className="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-xl"
           >
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              <Target className="w-5 h-5 text-primary" />
-              Weekly Goal Progress
+              <Calendar className="w-5 h-5 text-primary" />
+              Today's Activity
             </h2>
-            <div className="flex flex-col items-center mb-4">
-              <CircularProgress value={progress} />
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Time Spent
+                </span>
+                <span className="text-2xl font-bold text-primary dark:text-accent">{animatedDailyMinutes}</span>
+              </div>
+              <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <Flame className="w-4 h-4" />
+                  Calories Burned
+                </span>
+                <span className="text-2xl font-bold text-secondary dark:text-darkGreen">{animatedDailyCalories}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                  <Dumbbell className="w-4 h-4" />
+                  Workouts Done
+                </span>
+                <span className="text-2xl font-bold text-accent dark:text-[#AEC3B0]">{dailyStats.workouts}</span>
+              </div>
             </div>
-            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-              {(weeklyStats.minutes / 60).toFixed(1)} / {weeklyGoal} hours
-            </p>
-            {progress >= 100 && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="mt-4 p-3 bg-[#AEC3B0] dark:bg-[#6B9071] text-[#0F2A1D] dark:text-[#E3EED4] text-center rounded-lg font-bold text-sm"
-              >
-                🏆 Goal Achieved!
-              </motion.div>
-            )}
           </motion.div>
 
-          {/* Total Stats Card */}
+          {/* BMI & Weight Progress Card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -301,25 +343,50 @@ export default function Dashboard() {
             className="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-xl"
           >
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              All-Time Stats
+              ⚖️ BMI Progress
             </h2>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400">Total Minutes</span>
-                <span className="text-2xl font-bold text-primary dark:text-accent">{animatedMinutes}</span>
+            {profile && profile.weight && profile.height ? (
+              <div className="space-y-4">
+                {(() => {
+                  const heightInMeters = profile.height / 100
+                  const currentBmi = profile.weight / (heightInMeters * heightInMeters)
+                  const bmiCategory = currentBmi < 18.5 ? "Underweight" : currentBmi < 25 ? "Normal" : currentBmi < 30 ? "Overweight" : "Obese"
+                  
+                  const colorClasses = {
+                    Underweight: { bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-200 dark:border-blue-700", text: "text-blue-600 dark:text-blue-400" },
+                    Normal: { bg: "bg-green-50 dark:bg-green-900/20", border: "border-green-200 dark:border-green-700", text: "text-green-600 dark:text-green-400" },
+                    Overweight: { bg: "bg-orange-50 dark:bg-orange-900/20", border: "border-orange-200 dark:border-orange-700", text: "text-orange-600 dark:text-orange-400" },
+                    Obese: { bg: "bg-red-50 dark:bg-red-900/20", border: "border-red-200 dark:border-red-700", text: "text-red-600 dark:text-red-400" }
+                  }
+                  
+                  const colors = colorClasses[bmiCategory]
+                  
+                  return (
+                    <>
+                      <div className={`p-4 ${colors.bg} rounded-lg border-2 ${colors.border}`}>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Current BMI</p>
+                        <p className={`text-3xl font-bold ${colors.text}`}>{currentBmi.toFixed(1)}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{bmiCategory}</p>
+                      </div>
+                      <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400">Current Weight</span>
+                        <span className="font-bold text-gray-900 dark:text-white">{profile.weight?.toFixed(1)} kg</span>
+                      </div>
+                      {profile.target_weight && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Target Weight</span>
+                          <span className="font-bold text-primary dark:text-accent">{profile.target_weight?.toFixed(1)} kg</span>
+                        </div>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
-              <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400">Total Workouts</span>
-                <span className="text-2xl font-bold text-secondary dark:text-darkGreen">
-                  {recentWorkouts.length > 0 ? "Many" : "0"}
-                </span>
+            ) : (
+              <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-gray-600 dark:text-gray-400 text-sm">
+                Update your weight and height in Profile to see BMI progress
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600 dark:text-gray-400">Current Goal</span>
-                <span className="text-2xl font-bold text-accent dark:text-[#AEC3B0]">{profile?.goal || "N/A"}</span>
-              </div>
-            </div>
+            )}
           </motion.div>
 
           {/* Quick Actions Card */}
@@ -338,10 +405,10 @@ export default function Dashboard() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
-                whileHover={{ scale: 1.05, y: -3, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
+                whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.93 }}
                 onClick={() => navigate("/workouts")}
-                className="block w-full p-3 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition text-center cursor-pointer border-0"
+                className="w-full p-3 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition text-center"
               >
                 + Log Workout
               </motion.button>
@@ -349,18 +416,105 @@ export default function Dashboard() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.15 }}
-                whileHover={{ scale: 1.05, y: -3, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
+                whileHover={{ scale: 1.05, y: -3 }}
                 whileTap={{ scale: 0.93 }}
                 onClick={() => navigate("/goals")}
-                className="block w-full p-3 bg-gradient-to-r from-accent to-darkGreen text-light font-semibold rounded-lg hover:shadow-lg transition text-center cursor-pointer border-0"
+                className="w-full p-3 bg-gradient-to-r from-secondary to-darkGreen text-light font-semibold rounded-lg hover:shadow-lg transition text-center"
               >
-                View Goals
+                Set Goal
+              </motion.button>
+              <motion.button
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                whileHover={{ scale: 1.05, y: -3 }}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => navigate("/buddies")}
+                className="w-full p-3 bg-gradient-to-r from-accent to-primary text-light font-semibold rounded-lg hover:shadow-lg transition text-center"
+              >
+                Find Buddies
               </motion.button>
             </div>
           </motion.div>
         </div>
 
+        {/* Reminders Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-xl mb-8"
+        >
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <Bell className="w-5 h-5 text-primary" />
+            Workout Reminders
+          </h2>
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <div className="flex flex-col">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Time</label>
+              <input
+                type="time"
+                value={reminderTime}
+                onChange={(e) => setReminderTime(e.target.value)}
+                className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Frequency</label>
+              <select
+                value={reminderFrequency}
+                onChange={(e) => setReminderFrequency(e.target.value)}
+                className="px-4 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
+              >
+                <option value="daily">Daily</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="weekends">Weekends</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.93 }}
+                onClick={handleAddReminder}
+                className="w-full p-3 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition text-center"
+              >
+                Set Reminder
+              </motion.button>
+            </div>
+          </div>
 
+          {reminders.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-400">Active Reminders:</p>
+              {reminders.map((reminder, index) => (
+                <motion.div
+                  key={reminder.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700"
+                >
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">{reminder.time}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">{reminder.frequency}</p>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => handleDeleteReminder(reminder.id)}
+                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-bold"
+                  >
+                    ✕
+                  </motion.button>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
 
         {/* Recent Workouts */}
         {recentWorkouts.length > 0 && (

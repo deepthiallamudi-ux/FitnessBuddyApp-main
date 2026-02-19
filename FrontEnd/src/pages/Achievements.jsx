@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { Trophy, Star, Award, Zap, Flame, Facebook, Twitter, Linkedin, Share2 } from "lucide-react"
 import PageTransition from "../components/PageTransition"
+import { ACHIEVEMENT_BADGES } from "../utils/achievementUtils"
 
 export default function Achievements() {
   const { user } = useAuth()
@@ -39,100 +40,7 @@ export default function Achievements() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
-      if (data) {
-        setAchievements(data)
-        
-        // Auto-create week_warrior achievement if not exists
-        const hasWeekWarrior = data.some(a => a.badge_type === "week_warrior")
-        if (!hasWeekWarrior) {
-          const { data: workouts } = await supabase
-            .from("workouts")
-            .select("created_at")
-            .eq("user_id", user.id)
-          
-          if (workouts) {
-            const last7Days = workouts.filter(w => {
-              const workoutDate = new Date(w.created_at)
-              const now = new Date()
-              const diff = (now - workoutDate) / (1000 * 60 * 60 * 24)
-              return diff <= 7
-            })
-            
-            if (last7Days.length >= 7) {
-              await supabase.from("achievements").insert([{
-                user_id: user.id,
-                badge_type: "week_warrior",
-                created_at: new Date()
-              }])
-              
-              const { data: updatedAchievements } = await supabase
-                .from("achievements")
-                .select("*")
-                .eq("user_id", user.id)
-                .order("created_at", { ascending: false })
-              if (updatedAchievements) setAchievements(updatedAchievements)
-            }
-          }
-        }
-        
-        // Auto-create goal_completed if not exists but has completed goals
-        const hasGoalCompleted = data.some(a => a.badge_type === "goal_completed" || a.badge_type === "goal_reached")
-        if (!hasGoalCompleted) {
-          const { data: goals } = await supabase
-            .from("fitness_goals")
-            .select("id, current, target")
-            .eq("user_id", user.id)
-          
-          if (goals && goals.some(g => g.current >= g.target)) {
-            await supabase.from("achievements").insert([{
-              user_id: user.id,
-              badge_type: "goal_completed",
-              created_at: new Date()
-            }])
-            
-            const { data: updatedAchievements } = await supabase
-              .from("achievements")
-              .select("*")
-              .eq("user_id", user.id)
-              .order("created_at", { ascending: false })
-            if (updatedAchievements) setAchievements(updatedAchievements)
-          }
-        }
-        
-        // Auto-create calorie_blaster if not exists (5000 calories in a month)
-        const hasCalorieBlaster = data.some(a => a.badge_type === "calorie_blaster")
-        if (!hasCalorieBlaster) {
-          const { data: workouts } = await supabase
-            .from("workouts")
-            .select("calories, created_at")
-            .eq("user_id", user.id)
-          
-          if (workouts) {
-            const lastMonth = workouts.filter(w => {
-              const workoutDate = new Date(w.created_at)
-              const now = new Date()
-              const diff = (now - workoutDate) / (1000 * 60 * 60 * 24)
-              return diff <= 30
-            })
-            
-            const totalCalories = lastMonth.reduce((sum, w) => sum + (w.calories || 0), 0)
-            if (totalCalories >= 5000) {
-              await supabase.from("achievements").insert([{
-                user_id: user.id,
-                badge_type: "calorie_blaster",
-                created_at: new Date()
-              }])
-              
-              const { data: updatedAchievements } = await supabase
-                .from("achievements")
-                .select("*")
-                .eq("user_id", user.id)
-                .order("created_at", { ascending: false })
-              if (updatedAchievements) setAchievements(updatedAchievements)
-            }
-          }
-        }
-      }
+      setAchievements(data || [])
     } catch (error) {
       console.error("Error fetching achievements:", error)
     } finally {
@@ -159,98 +67,10 @@ export default function Achievements() {
     }
   }
 
-  const allBadges = [
-    {
-      id: "first_workout",
-      name: "First Step",
-      description: "Log your first workout",
-      icon: "👟",
-      points: 10,
-      rarity: "common",
-      unlocked: achievements.some(a => a.badge_type === "first_workout")
-    },
-    {
-      id: "week_warrior",
-      name: "Week Warrior",
-      description: "Complete 7 workouts in a week",
-      icon: "💪",
-      points: 50,
-      rarity: "rare",
-      unlocked: achievements.some(a => a.badge_type === "week_warrior")
-    },
-    {
-      id: "goal_reached",
-      name: "Goal Crusher",
-      description: "Complete your first fitness goal",
-      icon: "🎯",
-      points: 100,
-      rarity: "legendary",
-      unlocked: achievements.some(a => a.badge_type === "goal_completed" || a.badge_type === "goal_reached")
-    },
-    {
-      id: "social_butterfly",
-      name: "Social Butterfly",
-      description: "Connect with 5 fitness buddies",
-      icon: "🦋",
-      points: 75,
-      rarity: "epic",
-      unlocked: achievements.some(a => a.badge_type === "social_butterfly")
-    },
-    {
-      id: "challenge_winner",
-      name: "Champion",
-      description: "Win a community challenge",
-      icon: "🏆",
-      points: 150,
-      rarity: "legendary",
-      unlocked: achievements.some(a => a.badge_type === "challenge_winner")
-    },
-    {
-      id: "streak_master",
-      name: "Streak Master",
-      description: "Maintain a 30-day workout streak",
-      icon: "🔥",
-      points: 200,
-      rarity: "mythic",
-      unlocked: achievements.some(a => a.badge_type === "streak_master")
-    },
-    {
-      id: "calorie_blaster",
-      name: "Calorie Blaster",
-      description: "Burn 5,000 calories in a month",
-      icon: "🔥",
-      points: 120,
-      rarity: "epic",
-      unlocked: achievements.some(a => a.badge_type === "calorie_blaster")
-    },
-    {
-      id: "leaderboard_top10",
-      name: "Elite Athlete",
-      description: "Reach top 10 in leaderboard",
-      icon: "🥇",
-      points: 180,
-      rarity: "legendary",
-      unlocked: achievements.some(a => a.badge_type === "leaderboard_top10")
-    },
-    {
-      id: "sharing_superstar",
-      name: "Sharing Superstar",
-      description: "Share your progress 10 times",
-      icon: "📱",
-      points: 50,
-      rarity: "rare",
-      unlocked: achievements.some(a => a.badge_type === "sharing_superstar")
-    },
-    {
-      id: "gym_finder",
-      name: "Explorer",
-      description: "Save 3 gyms to your favorites",
-      icon: "🗺️",
-      points: 40,
-      rarity: "common",
-      unlocked: achievements.some(a => a.badge_type === "gym_finder")
-    }
-  ]
+  const allBadges = Object.values(ACHIEVEMENT_BADGES).map(badge => ({
+    ...badge,
+    unlocked: achievements.some(a => a.badge_type === badge.id)
+  }))
 
   const rarityColors = {
     common: "from-accent to-light",
@@ -269,7 +89,7 @@ export default function Achievements() {
   }
 
   const totalPoints = achievements.reduce((sum, a) => {
-    const badge = allBadges.find(b => b.id === a.badge_type)
+    const badge = ACHIEVEMENT_BADGES[a.badge_type]
     return sum + (badge?.points || 0)
   }, 0)
 

@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { Trophy, Users, Flame, Medal, Target, TrendingUp, Check, X, MessageCircle, UserPlus } from "lucide-react"
 import PageTransition from "../components/PageTransition"
+import { checkLeaderboardAchievements } from "../utils/achievementUtils"
 
 export default function Leaderboard() {
   const { user } = useAuth()
@@ -124,6 +125,11 @@ export default function Leaderboard() {
       const userEntry = sortedLeaderboard.find(u => u.id === user?.id)
       if (userEntry) {
         setUserRank(userEntry.rank)
+        
+        // Check for top 10 achievement
+        if (userEntry.rank <= 10) {
+          await checkLeaderboardAchievements(user.id)
+        }
       } else {
         setUserRank(null)
       }

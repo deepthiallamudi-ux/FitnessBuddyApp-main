@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { motion } from "framer-motion"
-import { Camera, MapPin, Trophy, Zap, User, Calendar, Lock, ArrowLeft, X, Edit2, Check } from "lucide-react"
+import { Camera, MapPin, Trophy, Zap, User, Calendar, Lock, ArrowLeft, X, Edit2, Check, Star } from "lucide-react"
 import PageTransition from "../components/PageTransition"
+import { ACHIEVEMENT_BADGES } from "../utils/achievementUtils"
 
 
 
@@ -39,6 +40,9 @@ export default function Profile() {
   const [passwordSuccess, setPasswordSuccess] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [originalAvatarUrl, setOriginalAvatarUrl] = useState(null)
+  const [totalPoints, setTotalPoints] = useState(0)
+  const [achievements, setAchievements] = useState([])
+  const [unlockedBadges, setUnlockedBadges] = useState(0)
 
   useEffect(() => {
     if (navigator.geolocation && !isViewingOther) {
@@ -77,6 +81,25 @@ export default function Profile() {
         setOriginalAvatarUrl(data.avatar_url || null)
         setLatitude(data.latitude || null)
         setLongitude(data.longitude || null)
+      }
+
+      // Fetch achievements and calculate points
+      const { data: achievementData } = await supabase
+        .from("achievements")
+        .select("*")
+        .eq("user_id", profileUserId)
+        .order("created_at", { ascending: false })
+
+      if (achievementData) {
+        setAchievements(achievementData)
+        setUnlockedBadges(achievementData.length)
+
+        // Calculate total points
+        const points = achievementData.reduce((sum, a) => {
+          const badge = ACHIEVEMENT_BADGES[a.badge_type]
+          return sum + (badge?.points || 0)
+        }, 0)
+        setTotalPoints(points)
       }
     }
 
@@ -543,6 +566,100 @@ const handleSubmit = async (e) => {
 
             {/* Divider */}
             <div className="border-t-2 border-gray-200 dark:border-gray-700 my-8"></div>
+
+            {/* Achievements Section */}
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl p-6 border-2 border-purple-200 dark:border-purple-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <span className="text-2xl">🏆</span>
+                Achievements & Rewards
+              </h3>
+
+              {/* Stats Cards */}
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
+                {/* Total Points */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Points</p>
+                      <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{totalPoints}</p>
+                    </div>
+                    <Star className="w-12 h-12 text-yellow-500" fill="currentColor" />
+                  </div>
+                </div>
+
+                {/* Badges Unlocked */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Badges Unlocked</p>
+                      <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">{unlockedBadges}</p>
+                    </div>
+                    <span className="text-4xl">🎖️</span>
+                  </div>
+                </div>
+
+                {/* Completion */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-purple-200 dark:border-purple-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Completion</p>
+                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{Math.round((unlockedBadges / Object.keys(ACHIEVEMENT_BADGES).length) * 100)}%</p>
+                    </div>
+                    <span className="text-4xl">📊</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Achievements */}
+              {achievements && achievements.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-bold text-gray-900 dark:text-white mb-3">Recent Achievements</h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {achievements.slice(0, 5).map((achievement, index) => {
+                      const badge = ACHIEVEMENT_BADGES[achievement.badge_type]
+                      return (
+                        <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 flex items-center gap-3 border border-purple-200 dark:border-purple-700">
+                          <span className="text-2xl">{badge.icon}</span>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900 dark:text-white text-sm">{badge.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">{badge.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-purple-600 dark:text-purple-400">+{badge.points}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{badge.rarity}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Achievement Badges Grid */}
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-3">All Achievements</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                  {Object.entries(ACHIEVEMENT_BADGES).map(([key, badge]) => {
+                    const isUnlocked = achievements && achievements.some(a => a.badge_type === key)
+                    return (
+                      <div
+                        key={key}
+                        className={`text-center p-3 rounded-lg border-2 transition ${
+                          isUnlocked
+                            ? "bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-800 dark:to-pink-800 border-purple-400 dark:border-purple-500"
+                            : "bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 opacity-50"
+                        }`}
+                      >
+                        <div className="text-3xl mb-2">{badge.icon}</div>
+                        <p className="text-xs font-bold text-gray-900 dark:text-white">{badge.name}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">+{badge.points} pts</p>
+                        {isUnlocked && <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold mt-1">✓ Earned</p>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
 
             {/* Change Password Section */}
             {!isViewingOther && isEditing && (

@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
 import { Trophy, Users, Target, Flame, Award, Plus, Zap } from "lucide-react"
+import { checkChallengeAchievements } from "../utils/achievementUtils"
 
 export default function Challenges() {
   const { user } = useAuth()
@@ -85,6 +86,7 @@ export default function Challenges() {
               ...member,
               username: profile?.username || "Unknown",
               avatar_url: profile?.avatar_url,
+              isOwner: member.user_id === challenge.created_by,
               progressPercent: Math.min((member.progress / challenge.target) * 100, 100)
             }
           })
@@ -97,6 +99,57 @@ export default function Challenges() {
     } catch (error) {
       console.error("Error fetching challenge details:", error)
     }
+  }
+
+  const handleUpdateProgress = async (memberId, newProgress) => {
+    try {
+      const { error } = await supabase
+        .from("challenge_members")
+        .update({ progress: parseFloat(newProgress) })
+        .eq("id", memberId)
+
+      if (error) throw error
+
+      alert("✅ Progress updated!")
+      
+      // Check for challenge achievements
+      await checkChallengeAchievements(user.id)
+      
+      // Dispatch achievement update event
+      window.dispatchEvent(new Event('achievementsUpdate'))
+      
+      fetchChallengeDetails(selectedChallenge)
+    } catch (error) {
+      console.error("Error updating progress:", error)
+      alert("Error updating progress: " + error.message)
+    }
+  }
+
+  const getChallengeStatus = (challenge) => {
+    if (!challenge.end_date) return "ongoing"
+    const now = new Date()
+    const endDate = new Date(challenge.end_date)
+    return endDate < now ? "ended" : "ongoing"
+  }
+
+  const getDurationDays = (duration) => {
+    const durationMap = {
+      daily: 1,
+      weekly: 7,
+      monthly: 30,
+      quarterly: 90
+    }
+    return durationMap[duration] || 30
+  }
+
+  const formatEndDate = (challenge) => {
+    if (!challenge.end_date) {
+      const durationDays = getDurationDays(challenge.duration)
+      const endDate = new Date(challenge.created_at)
+      endDate.setDate(endDate.getDate() + durationDays)
+      return endDate.toLocaleDateString()
+    }
+    return new Date(challenge.end_date).toLocaleDateString()
   }
 
   const handleJoinChallenge = async (challengeId) => {
@@ -490,6 +543,16 @@ export default function Challenges() {
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   {challengeDetails.description}
                 </p>
+                
+                {/* Challenge Status */}
+                <div className={`inline-block px-4 py-2 rounded-full font-semibold mb-4 ${
+                  getChallengeStatus(challengeDetails) === "ongoing"
+                    ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300"
+                    : "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300"
+                }`}>
+                  {getChallengeStatus(challengeDetails) === "ongoing" ? "🔄 Ongoing" : "✅ Ended"}
+                </div>
+
                 <div className="flex gap-4 justify-center flex-wrap">
                   <div className="bg-orange-100 dark:bg-orange-900 px-4 py-2 rounded-lg">
                     <p className="text-sm text-gray-600 dark:text-gray-300">Target</p>
@@ -501,6 +564,12 @@ export default function Challenges() {
                     <p className="text-sm text-gray-600 dark:text-gray-300">Duration</p>
                     <p className="text-lg font-bold text-blue-600 dark:text-blue-400 capitalize">
                       {challengeDetails.duration}
+                    </p>
+                  </div>
+                  <div className="bg-purple-100 dark:bg-purple-900 px-4 py-2 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Ends</p>
+                    <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                      {formatEndDate(challengeDetails)}
                     </p>
                   </div>
                   <div className="bg-green-100 dark:bg-green-900 px-4 py-2 rounded-lg">
@@ -519,40 +588,78 @@ export default function Challenges() {
                 </h3>
                 {participants.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {participants.map((participant, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: idx * 0.05 }}
-                        className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold">
-                            {participant.username?.charAt(0).toUpperCase()}
+                    {participants.map((participant, idx) => {
+                      const isCurrentUser = participant.user_id === user.id
+                      const isOwner = participant.isOwner
+                      return (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className={`p-4 rounded-lg ${
+                            isOwner
+                              ? "bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900 dark:to-orange-900 border-2 border-yellow-400 dark:border-yellow-600"
+                              : "bg-gray-50 dark:bg-gray-800"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold">
+                                {participant.username?.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                  {participant.username}
+                                  {isOwner && <span className="text-xs bg-yellow-500 text-white px-2 py-0.5 rounded-full font-bold">👑 Owner</span>}
+                                  {isCurrentUser && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-bold">You</span>}
+                                </p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {participant.progress} / {challengeDetails.target} {challengeDetails.unit}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">
-                              {participant.username}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {participant.progress} / {challengeDetails.target} {challengeDetails.unit}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="w-24">
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+
+                          {/* Progress Bar */}
+                          <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-2 mb-2">
                             <div
                               className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all"
                               style={{ width: `${participant.progressPercent}%` }}
                             />
                           </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 text-right mt-1">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 text-right mb-2">
                             {Math.round(participant.progressPercent)}%
                           </p>
-                        </div>
-                      </motion.div>
-                    ))}
+
+                          {/* Update Progress Input (Only for current user if they're a participant) */}
+                          {isCurrentUser && !isOwner && getChallengeStatus(challengeDetails) === "ongoing" && (
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                placeholder="Update progress..."
+                                id={`progress-${participant.id}`}
+                                className="flex-1 px-2 py-1 rounded text-sm border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                min="0"
+                                max={challengeDetails.target}
+                              />
+                              <button
+                                onClick={() => {
+                                  const input = document.getElementById(`progress-${participant.id}`)
+                                  const newProgress = input.value
+                                  if (newProgress) {
+                                    handleUpdateProgress(participant.id, newProgress)
+                                  }
+                                }}
+                                className="px-3 py-1 bg-green-500 text-white rounded text-sm font-semibold hover:bg-green-600 transition"
+                              >
+                                Update
+                              </button>
+                            </div>
+                          )}
+                        </motion.div>
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-600 dark:text-gray-400 text-center py-8">
@@ -562,7 +669,7 @@ export default function Challenges() {
               </div>
 
               {/* Join Button */}
-              {!userChallenges.includes(selectedChallenge) && (
+              {!userChallenges.includes(selectedChallenge) && getChallengeStatus(challengeDetails) === "ongoing" && (
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -577,10 +684,20 @@ export default function Challenges() {
                   Join This Challenge
                 </motion.button>
               )}
+
+              {getChallengeStatus(challengeDetails) === "ended" && (
+                <motion.button
+                  disabled
+                  className="w-full bg-gray-400 text-white font-bold py-3 rounded-lg cursor-not-allowed opacity-60"
+                >
+                  ✅ This challenge has ended
+                </motion.button>
+              )}
             </motion.div>
           </motion.div>
         )}
       </motion.div>
+      
     </div>
     </PageTransition>
   )

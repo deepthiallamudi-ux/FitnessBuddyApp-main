@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
 import { matchUsers } from "../utils/MatchUsers"
+import { checkBuddyAchievements } from "../utils/achievementUtils"
 import { motion } from "framer-motion"
 import { MessageCircle, UserPlus, CheckCircle, Search, X } from "lucide-react"
 
@@ -138,6 +139,17 @@ export default function Buddies() {
           if (incomingProfiles) {
             setIncomingRequests(incomingProfiles)
           }
+        }
+
+        // Fetch shared progress from buddies
+        const { data: shares } = await supabase
+          .from("progress_shares")
+          .select("*, sharer:sharer_id(username, avatar_url)")
+          .eq("receiver_id", user.id)
+          .order("created_at", { ascending: false })
+
+        if (shares) {
+          setSharedProgress(shares)
         }
       } catch (error) {
         console.error("Error fetching buddies:", error)
@@ -286,6 +298,16 @@ export default function Buddies() {
           setConnectedBuddies(connectedProfiles)
         }
       }
+
+      // Check buddy achievements
+      try {
+        await checkBuddyAchievements(user.id)
+      } catch (err) {
+        console.error("Error checking buddy achievements:", err)
+      }
+
+      // Trigger update event
+      window.dispatchEvent(new Event('achievementsUpdate'))
     } catch (error) {
       alert("Error accepting request: " + error.message)
     }
@@ -443,6 +465,20 @@ export default function Buddies() {
                 }`}
               >
                 📨 Requests ({incomingRequests.length})
+              </motion.button>
+            )}
+            {sharedProgress.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setViewMode("progress")}
+                className={`px-6 py-2 rounded-lg font-semibold transition flex items-center gap-2 ${
+                  viewMode === "progress"
+                    ? "bg-gradient-to-r from-primary to-secondary text-light"
+                    : "bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                📊 Buddy Progress ({sharedProgress.length})
               </motion.button>
             )}
           </div>
@@ -612,8 +648,8 @@ export default function Buddies() {
                   )}
                 </div>
               ) : (
-                /* Connected Buddies */
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                /* My Buddies - Connected Buddies with Recent Activity */
+                <div className="space-y-6">
                   {connectedBuddies
                     .filter(buddy => {
                       const searchLower = searchQuery.toLowerCase()
@@ -633,69 +669,141 @@ export default function Buddies() {
                           buddy.workout?.toLowerCase().includes(searchLower)
                         )
                       })
-                      .map((buddy, index) => (
-                      <motion.div
-                        key={buddy.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg hover:shadow-xl transition p-6"
-                      >
-                        {/* Avatar and Info */}
-                        <div className="flex items-start gap-4 mb-4">
-                          {buddy.avatar_url ? (
-                            <img
-                              src={buddy.avatar_url}
-                              alt={buddy.username}
-                              className="w-16 h-16 rounded-full object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                              {buddy.username?.charAt(0).toUpperCase()}
+                      .map((buddy, index) => {
+                        // Get shared progress from this specific buddy
+                        const buddyActivity = sharedProgress.filter(
+                          share => share.sharer_id === buddy.id
+                        ).slice(0, 2) // Show last 2 activities
+                        
+                        return (
+                          <motion.div
+                            key={buddy.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden"
+                          >
+                            {/* Main Buddy Info Card */}
+                            <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+                              <div className="flex items-start gap-4 mb-4">
+                                {buddy.avatar_url ? (
+                                  <img
+                                    src={buddy.avatar_url}
+                                    alt={buddy.username}
+                                    className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                    {buddy.username?.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                    {buddy.username}
+                                  </h3>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    📍 {buddy.location || "Unknown"}
+                                  </p>
+                                  <span className="inline-block mt-2 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 text-xs font-semibold rounded">
+                                    ✓ Connected
+                                  </span>
+                                </div>
+
+                                {/* Compatibility Score */}
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Compatibility</p>
+                                  <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+                                    {buddy.score}/10
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Info Section */}
+                              <div className="grid grid-cols-2 gap-4 mb-4">
+                                <div className="bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Goal</p>
+                                  <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                                    {buddy.goal || "Not set"}
+                                  </p>
+                                </div>
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Workout</p>
+                                  <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                                    {buddy.workout || "Not set"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => handleChatBuddy(buddy)}
+                                className="w-full py-2 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                Send Message
+                              </motion.button>
                             </div>
-                          )}
 
-                          <div className="flex-1">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                              {buddy.username}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              📍 {buddy.location || "Unknown"}
-                            </p>
-                            <span className="inline-block mt-2 px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 text-xs font-semibold rounded">
-                              ✓ Connected
-                            </span>
-                          </div>
-                        </div>
+                            {/* Recent Activity Section */}
+                            {buddyActivity.length > 0 && (
+                              <div className="p-6 bg-gray-50 dark:bg-gray-800/50">
+                                <h4 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                  <span>📊 Recent Activity</span>
+                                </h4>
+                                <div className="space-y-3">
+                                  {buddyActivity.map((activity, idx) => (
+                                    <div key={idx} className="bg-white dark:bg-gray-900 p-3 rounded-lg border-l-4 border-primary">
+                                      <p className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
+                                        {activity.title}
+                                      </p>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                                        {new Date(activity.created_at).toLocaleDateString()}
+                                      </p>
+                                      {activity.stats && (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                          {activity.stats.duration && (
+                                            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
+                                              {activity.stats.duration}m
+                                            </span>
+                                          )}
+                                          {activity.stats.calories && (
+                                            <span className="text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 rounded">
+                                              {activity.stats.calories} cal
+                                            </span>
+                                          )}
+                                          {activity.stats.distance && (
+                                            <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded">
+                                              {activity.stats.distance}km
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
 
-                        {/* Info Section */}
-                        <div className="space-y-2 border-t border-b border-gray-200 dark:border-gray-700 py-4 mb-4">
-                          <p className="text-sm">
-                            <strong className="text-gray-700 dark:text-gray-300">Goal:</strong>{" "}
-                            <span className="text-gray-600 dark:text-gray-400">{buddy.goal || "Not set"}</span>
-                          </p>
-                          <p className="text-sm">
-                            <strong className="text-gray-700 dark:text-gray-300">Workout:</strong>{" "}
-                            <span className="text-gray-600 dark:text-gray-400">{buddy.workout || "Not set"}</span>
-                          </p>
-                        </div>
-
-                        {/* Chat Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleChatBuddy(buddy)}
-                          className="w-full py-2 bg-gradient-to-r from-primary to-secondary text-light font-semibold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          Message
-                        </motion.button>
-                      </motion.div>
-                    ))
+                            {buddyActivity.length === 0 && (
+                              <div className="p-6 bg-gray-50 dark:bg-gray-800/50 text-center">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  No shared activities yet. Keep up the motivation! 💪
+                                </p>
+                              </div>
+                            )}
+                          </motion.div>
+                        )
+                      })
                   ) : (
                     <div className="col-span-full text-center py-12">
                       <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">
                         No connected buddies yet
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
+                        Start connecting with fitness lovers from Recommended list! 🤝
                       </p>
                       <button
                         onClick={() => setViewMode("recommended")}
@@ -707,8 +815,6 @@ export default function Buddies() {
                   )}
                 </div>
               )}
-            </>
-          )}
 
           {/* Pending Requests */}
           {viewMode === "pending" && (
@@ -814,6 +920,150 @@ export default function Buddies() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Buddy Progress Shared */}
+          {viewMode === "progress" && (
+            <div className="space-y-6">
+              {sharedProgress.length > 0 ? (
+                sharedProgress.map((share, index) => (
+                  <motion.div
+                    key={share.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6"
+                  >
+                    {/* Buddy Info */}
+                    <div className="flex items-start gap-4 mb-4">
+                      {share.sharer?.avatar_url ? (
+                        <img
+                          src={share.sharer.avatar_url}
+                          alt={share.sharer.username}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-bold">
+                          {share.sharer?.username?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                          {share.sharer?.username}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {new Date(share.created_at).toLocaleDateString()} at{" "}
+                          {new Date(share.created_at).toLocaleTimeString()}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        share.share_type === 'weekly_summary'
+                          ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300'
+                          : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                      }`}>
+                        {share.share_type === 'weekly_summary' ? '📊 Weekly Summary' : '💪 Workout'}
+                      </span>
+                    </div>
+
+                    {/* Share Title & Message */}
+                    <div className="mb-4">
+                      <h4 className="text-base font-bold text-gray-900 dark:text-white mb-1">
+                        {share.title}
+                      </h4>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                        {share.message}
+                      </p>
+                    </div>
+
+                    {/* Stats */}
+                    {share.stats && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {share.share_type === 'weekly_summary' && (
+                          <>
+                            <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Workouts</p>
+                              <p className="text-xl font-bold text-primary dark:text-accent">
+                                {share.stats.workouts}
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 dark:from-secondary/20 dark:to-secondary/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Active Days</p>
+                              <p className="text-xl font-bold text-secondary dark:text-darkGreen">
+                                {share.stats.activeDays}/7
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-orange/10 to-orange/5 dark:from-orange/20 dark:to-orange/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Duration</p>
+                              <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                                {share.stats.duration}m
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-red/10 to-red/5 dark:from-red/20 dark:to-red/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Calories</p>
+                              <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                                {share.stats.calories}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                        {share.share_type === 'workout' && (
+                          <>
+                            <div className="bg-gradient-to-br from-blue/10 to-blue/5 dark:from-blue/20 dark:to-blue/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Type</p>
+                              <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                {share.stats.type}
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Duration</p>
+                              <p className="text-xl font-bold text-primary dark:text-accent">
+                                {share.stats.duration}m
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-red/10 to-red/5 dark:from-red/20 dark:to-red/10 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Calories</p>
+                              <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                                {share.stats.calories}
+                              </p>
+                            </div>
+                            {share.stats.distance && (
+                              <div className="bg-gradient-to-br from-green/10 to-green/5 dark:from-green/20 dark:to-green/10 p-3 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Distance</p>
+                                <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                                  {share.stats.distance}km
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Motivation Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleChatBuddy({ id: share.sharer_id, username: share.sharer?.username })}
+                      className="mt-4 w-full py-2 bg-gradient-to-r from-primary to-secondary text-white font-semibold rounded-lg hover:shadow-lg transition flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Send Motivation
+                    </motion.button>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">
+                    No shared progress yet
+                  </p>
+                  <p className="text-gray-500 dark:text-gray-500 text-sm">
+                    When your buddies share workouts and achievements, they'll appear here!
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+            </>
           )}
         </motion.div>
       </div>

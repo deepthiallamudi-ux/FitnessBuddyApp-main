@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
 import { MapPin, Phone, Clock, Star, Filter, Navigation, X, Search } from "lucide-react"
+import { checkGymAchievements } from "../utils/achievementUtils"
 
 export default function GymFinder() {
   const { user } = useAuth()
@@ -174,6 +175,12 @@ export default function GymFinder() {
 
       alert("✓ Gym saved to your favorites!")
       fetchSavedGyms()
+      
+      // Check for gym achievements
+      await checkGymAchievements(user.id)
+      
+      // Dispatch achievement update event
+      window.dispatchEvent(new Event('achievementsUpdate'))
     } catch (error) {
       console.error("Error saving gym:", error)
     } finally {

@@ -1,53 +1,36 @@
-# Fitness Buddy Backend
+# FitnessBuddy Backend API
 
-Complete Node.js/Express REST API for the Fitness Buddy application.
+Complete Node.js/Express REST API server for the FitnessBuddy fitness social platform. Provides endpoints for workouts, challenges, buddies, and real-time data synchronization.
 
-## Structure
+## 🚀 Quick Start
 
-```
-BackEnd/
-├── controllers/         # Request handlers
-│   ├── profileControllers.js
-│   ├── workoutControllers.js
-│   ├── goalsControllers.js
-│   ├── achievementsControllers.js
-│   ├── buddyControllers.js
-│   ├── chatControllers.js
-│   ├── leaderboardControllers.js
-│   └── gymControllers.js
-├── routes/            # API route definitions
-│   ├── profileRoutes.js
-│   ├── workoutRoutes.js
-│   ├── goalsRoutes.js
-│   ├── achievementsRoutes.js
-│   ├── buddyRoutes.js
-│   ├── chatRoutes.js
-│   ├── leaderboardRoutes.js
-│   └── gymRoutes.js
-├── config/
-│   └── supabaseClient.js
-├── app.js             # Express app setup
-├── server.js          # Server entry point
-├── package.json
-└── .env (not included - create manually)
+```bash
+cd BackEnd
+npm install
+npm run dev
 ```
 
-## Features
+Server runs on `http://localhost:5000`
 
-✅ **Complete CRUD Operations:**
-- User Profiles
-- Workout Management
-- Goal Management
-- Achievements Tracking
-- Buddy System
-- Chat Messaging
-- Global & Cohort Leaderboards
-- Gym Finder (Google Places API)
+## 📋 Features
 
-✅ **Advanced Features:**
-- Intelligent points calculation
-- User matching algorithm
-- Leaderboard rankings
+### ✅ Core API Endpoints
+- **User Profiles** - CRUD operations with avatar upload
+- **Workout Management** - Log, track, and share workouts
+- **Challenge System** - Create, join, and track challenges (NEW)
+- **Buddy System** - Connect with other fitness enthusiasts
+- **Messaging** - Real-time chat between buddies
+- **Leaderboard** - Rankings and achievements
+- **Gym Finder** - Search nearby fitness venues via Google Places API
+
+### ✨ Enhanced Features (v2.0.0)
+- **Challenge Duration Tracking** - Auto status (ongoing/ended)
+- **Progress Updates** - Real-time participation progress
+- **Owner/Participant Roles** - Distinguish challenge creators from members
+- **Activity Visibility** - View all participants and their progress
+- **Buddy Activity Feed** - See what buddies are sharing
+
+## 🛠️ Tech Stack
 - Read/unread message tracking
 - Workout statistics aggregation
 

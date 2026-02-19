@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS challenges (
   duration TEXT,
   reward_badge TEXT,
   created_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  start_date TIMESTAMP DEFAULT NOW(),
+  end_date TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

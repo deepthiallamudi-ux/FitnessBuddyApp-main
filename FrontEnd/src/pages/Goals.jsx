@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import PageTransition from "../components/PageTransition"
 import { Plus, Edit2, Trash2, Target, Trophy, Zap, ChevronDown, ChevronUp, Calendar } from "lucide-react"
+import { checkGoalAchievements } from "../utils/achievementUtils"
 
 // Calculate automatic deadline based on goal type
 const calculateDeadline = (goalType) => {
@@ -198,15 +199,8 @@ export default function Goals() {
       setCelebratingGoal(goalId)
       setTimeout(() => setCelebratingGoal(null), 5000)
 
-      // Award badge
-      await supabase.from("achievements").insert([
-        {
-          user_id: user.id,
-          achievement: "Goal Completed: " + goal.title,
-          badge_type: "goal_completed",
-          created_at: new Date()
-        }
-      ])
+      // Check achievements
+      await checkGoalAchievements(user.id)
     }
 
     fetchGoals()
